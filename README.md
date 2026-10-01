@@ -109,3 +109,10 @@ To restore the database from any snapshot file in `~/!db_backups`:
 ```bash
 cat ~/!db_backups/jobsearch_backup_<TIMESTAMP>.sql | docker compose exec -T db psql -U jobsearch jobsearch
 ```
+
+## Project Workflow & Multi-Agent Architecture
+
+### 1. AI & Agent Architecture
+
+- **Orchestrator**: Powered by **Gemini 3.8 Flash**, responsible for architectural planning, task breakdown, code reviews, and verification.
+- **Local Subagent Worker**: Powered by **Qwen 3.8 27B**, specifically [Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF](https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF) hosted locally via `llama.cpp` handling code generation and specialized implementation tasks.
