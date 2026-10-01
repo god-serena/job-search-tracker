@@ -1,0 +1,74 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jobsearch
+      POSTGRES_PASSWORD: jobsearch
+      POSTGRES_DB: jobsearch
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ${BACKUP_DIR:-${HOME}/!db_backups}:/backups
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobsearch"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backup-cron:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jobsearch
+      POSTGRES_PASSWORD: jobsearch
+      PGPASSWORD: jobsearch
+      POSTGRES_DB: jobsearch
+      PGHOST: db
+      BACKUP_CRON_SCHEDULE: "0 */6 * * *"
+    volumes:
+      - ${BACKUP_DIR:-${HOME}/!db_backups}:/backups
+      - ./scripts/backup_db.sh:/usr/local/bin/backup_db.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "$$BACKUP_CRON_SCHEDULE /usr/local/bin/backup_db.sh > /proc/1/fd/1 2>&1" > /etc/crontabs/root
+        /usr/local/bin/backup_db.sh
+        exec crond -f -l 2
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://jobsearch:jobsearch@db:5432/jobsearch
+      LOCAL_LLM_URL: http://host.docker.internal:8080
+      LOCAL_LLM_MODEL: Qwythos-9B
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

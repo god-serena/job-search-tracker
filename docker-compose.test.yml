@@ -1,0 +1,51 @@
+services:
+  db-test:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jobsearch
+      POSTGRES_PASSWORD: jobsearch
+      POSTGRES_DB: jobsearch
+    volumes:
+      - db_test_data:/var/lib/postgresql/data
+      - ./scripts/seed_test_data.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobsearch"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend-test:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://jobsearch:jobsearch@db-test:5432/jobsearch
+      LOCAL_LLM_URL: http://host.docker.internal:8080
+      LOCAL_LLM_MODEL: Qwythos-9B
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8001:8000"
+    depends_on:
+      db-test:
+        condition: service_healthy
+
+  frontend-test:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:8001
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5174:5173"
+    depends_on:
+      - backend-test
+
+volumes:
+  db_test_data:
