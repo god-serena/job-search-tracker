@@ -11,8 +11,7 @@ A self-hosted kanban-style dashboard for tracking job applications. Built with:
 ## Getting started
 
 ```bash
-cd job-dashboard
-docker compose up --build
+docker compose up --build -d
 ```
 
 - Frontend: http://localhost:5173
