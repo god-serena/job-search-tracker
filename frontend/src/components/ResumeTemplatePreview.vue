@@ -8,11 +8,11 @@ const props = defineProps({
 
 const emit = defineEmits(["close"]);
 
+// State
 const selectedTemplate = ref("ats"); // "ats" | "modern" | "executive"
-
-function handlePrint() {
-  window.print();
-}
+const pageMode = ref("fit"); // "fit" | "multi"
+const selectedDensity = ref("compact"); // "compact" | "normal"
+const zoom = ref(0.8); // 80% default for Fit Screen
 
 function handleKeyDown(event) {
   if (event.key === "Escape") {
@@ -214,390 +214,845 @@ const parsedResume = computed(() => {
     sections,
   };
 });
+
+// Calculate multi-page section splits based on realistic height estimations
+const pages = computed(() => {
+  const sections = parsedResume.value.sections || [];
+  if (pageMode.value === "fit" || sections.length === 0) {
+    return [sections];
+  }
+
+  const isCompact = selectedDensity.value === "compact";
+  const itemH = isCompact ? 22 : 28;
+  const subH = isCompact ? 24 : 30;
+  const titleH = isCompact ? 30 : 36;
+  const headerH = 120 + (parsedResume.value.contactLines?.length || 0) * 16;
+  const PAGE_1_BUDGET = 950;
+
+  let currentH = headerH;
+  const page1 = [];
+  const page2 = [];
+  let onPage2 = false;
+
+  for (let sIdx = 0; sIdx < sections.length; sIdx++) {
+    const sec = sections[sIdx];
+    if (onPage2) {
+      page2.push(sec);
+      continue;
+    }
+
+    // Estimate this section's height
+    let secH = titleH;
+    for (const b of sec.blocks) {
+      if (b.type === "subheading") {
+        secH += subH;
+      } else if (b.type === "bullets") {
+        secH += (b.items?.length || 0) * itemH;
+      } else if (b.type === "paragraph") {
+        const lines = Math.max(1, Math.ceil((b.raw || "").length / 75));
+        secH += lines * (isCompact ? 18 : 22) + 8;
+      }
+    }
+
+    if (currentH + secH <= PAGE_1_BUDGET) {
+      page1.push(sec);
+      currentH += secH;
+    } else {
+      // Exceeds remaining Page 1 budget
+      const remainingSpace = PAGE_1_BUDGET - currentH;
+      if (remainingSpace > 180 && sec.blocks.length > 1) {
+        const p1Blocks = [];
+        const p2Blocks = [];
+        let blockHSum = titleH;
+
+        for (const b of sec.blocks) {
+          let bH = 0;
+          if (b.type === "subheading") bH = subH;
+          else if (b.type === "bullets") bH = (b.items?.length || 0) * itemH;
+          else if (b.type === "paragraph") {
+            const lines = Math.max(1, Math.ceil((b.raw || "").length / 75));
+            bH = lines * (isCompact ? 18 : 22) + 8;
+          }
+
+          if (blockHSum + bH <= remainingSpace) {
+            p1Blocks.push(b);
+            blockHSum += bH;
+          } else {
+            p2Blocks.push(b);
+          }
+        }
+
+        if (p1Blocks.length > 0 && p2Blocks.length > 0) {
+          page1.push({ title: sec.title, blocks: p1Blocks });
+          page2.push({ title: `${sec.title} (Continued)`, blocks: p2Blocks });
+          onPage2 = true;
+          continue;
+        }
+      }
+
+      if (page1.length === 0) {
+        page1.push(sec);
+      } else {
+        page2.push(sec);
+      }
+      onPage2 = true;
+    }
+  }
+
+  if (page2.length === 0) {
+    return [page1];
+  }
+  return [page1, page2];
+});
+
+const pageCount = computed(() => pages.value.length);
+
+// Isolated 1:1 Print Engine using hidden iframe
+function handlePrint() {
+  const originalTitle = document.title;
+  const resumeName = parsedResume.value.name
+    ? `${parsedResume.value.name} - Resume`
+    : props.title || "Resume";
+  document.title = resumeName;
+
+  const sheets = document.querySelectorAll("#resume-print-root .a4-page-sheet");
+  if (!sheets || sheets.length === 0) {
+    window.print();
+    document.title = originalTitle;
+    return;
+  }
+
+  // Collect compiled stylesheets from current document
+  let stylesHtml = "";
+  document.querySelectorAll('link[rel="stylesheet"], style').forEach((el) => {
+    stylesHtml += el.outerHTML;
+  });
+
+  let sheetsHtml = "";
+  sheets.forEach((sheet) => {
+    sheetsHtml += sheet.outerHTML;
+  });
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const frameDoc = iframe.contentWindow.document;
+  frameDoc.open();
+  frameDoc.write(`<!doctype html>
+  <html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>${resumeName}</title>
+    ${stylesHtml}
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      html, body {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .print-frame-body {
+        width: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .a4-page-sheet {
+        box-sizing: border-box !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        margin: 0 auto !important;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        overflow: hidden !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .a4-page-sheet:last-of-type,
+      .a4-page-sheet:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+      h1, h2, h3, header, .subheading-item {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+      li {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    </style>
+  </head>
+  <body class="print-frame-body">
+    ${sheetsHtml}
+  </body>
+  </html>`);
+  frameDoc.close();
+
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    document.title = originalTitle;
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 2000);
+  }, 250);
+}
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex flex-col items-center justify-start overflow-y-auto p-4 sm:p-6 preview-modal-backdrop"
-    @click.self="emit('close')"
-  >
-    <!-- Sticky Header Toolbar (Hidden during print) -->
-    <header
-      class="no-print sticky top-0 z-10 w-full max-w-4xl bg-slate-900/95 backdrop-blur-md text-white rounded-xl shadow-xl px-4 py-3 mb-6 flex flex-wrap items-center justify-between gap-3 border border-slate-700/80"
+  <Teleport to="body">
+    <div
+      id="resume-print-root"
+      class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center overflow-y-auto p-4 sm:p-6 preview-modal-backdrop"
+      @click.self="emit('close')"
     >
-      <!-- Title & Template Switcher -->
-      <div class="flex items-center gap-3 flex-wrap">
-        <span class="text-sm font-semibold uppercase tracking-wider text-slate-400">
-          Template:
-        </span>
-        <div class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-          <button
-            type="button"
-            class="px-3.5 py-1.5 text-sm font-medium rounded-md transition-all"
-            :class="
-              selectedTemplate === 'ats'
-                ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                : 'text-slate-300 hover:text-white'
-            "
-            @click="selectedTemplate = 'ats'"
-          >
-            ATS Standard
-          </button>
-          <button
-            type="button"
-            class="px-3.5 py-1.5 text-sm font-medium rounded-md transition-all"
-            :class="
-              selectedTemplate === 'modern'
-                ? 'bg-amber-500 text-slate-950 font-semibold shadow-xs'
-                : 'text-slate-300 hover:text-white'
-            "
-            @click="selectedTemplate = 'modern'"
-          >
-            Modern Minimalist
-          </button>
-          <button
-            type="button"
-            class="px-3.5 py-1.5 text-sm font-medium rounded-md transition-all"
-            :class="
-              selectedTemplate === 'executive'
-                ? 'bg-indigo-600 text-white font-semibold shadow-xs'
-                : 'text-slate-300 hover:text-white'
-            "
-            @click="selectedTemplate = 'executive'"
-          >
-            Executive
-          </button>
-        </div>
-      </div>
-
-      <!-- Actions: Print and Close -->
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="px-4 py-1.5 text-sm font-semibold rounded-md bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
-          @click="handlePrint"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-            />
-          </svg>
-          <span>Print / Save as PDF</span>
-        </button>
-
-        <button
-          type="button"
-          class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors leading-none"
-          @click="emit('close')"
-          aria-label="Close"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <!-- Printable Resume Sheet Container -->
-    <div class="w-full flex justify-center preview-sheet-wrapper">
-      <!-- ==================== TEMPLATE 1: ATS STANDARD ==================== -->
-      <article
-        v-if="selectedTemplate === 'ats'"
-        class="resume-sheet w-full max-w-[850px] min-h-[1050px] bg-white text-black p-8 sm:p-12 shadow-2xl rounded-sm font-sans"
+      <!-- Control Toolbar (Sticky Top, no-print) -->
+      <header
+        class="no-print sticky top-0 z-30 w-full max-w-5xl bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 sm:p-4 mb-6 flex flex-col gap-3 border border-slate-700/80 transition-all"
       >
-        <!-- Header -->
-        <header class="text-center border-b border-black pb-3 mb-4">
-          <h1 class="text-2xl font-bold uppercase tracking-wider text-black">
-            {{ parsedResume.name }}
-          </h1>
-          <div
-            v-if="parsedResume.contactLines.length"
-            class="text-xs text-black mt-1.5 space-y-0.5 leading-normal"
-          >
-            <div
-              v-for="(cLine, idx) in parsedResume.contactLines"
-              :key="idx"
-              v-html="formatInline(cLine)"
-            ></div>
-          </div>
-        </header>
-
-        <!-- Sections -->
-        <div class="space-y-4">
-          <section
-            v-for="(sec, sIdx) in parsedResume.sections"
-            :key="sIdx"
-            class="section-block"
-          >
-            <h2
-              v-if="sec.title"
-              class="text-xs font-bold uppercase tracking-widest text-black border-b border-black pb-0.5 mb-2"
-            >
-              {{ sec.title }}
-            </h2>
-
-            <div class="space-y-2">
-              <template v-for="(block, bIdx) in sec.blocks" :key="bIdx">
-                <!-- Subheading -->
-                <div
-                  v-if="block.type === 'subheading'"
-                  class="flex justify-between items-baseline text-xs font-bold text-black pt-1"
-                >
-                  <span v-html="formatInline(block.primary)"></span>
-                  <span
-                    v-if="block.secondary"
-                    class="font-normal text-right shrink-0 ml-4"
-                    v-html="formatInline(block.secondary)"
-                  ></span>
-                </div>
-
-                <!-- Bullets -->
-                <ul
-                  v-else-if="block.type === 'bullets'"
-                  class="list-disc list-outside ml-4 space-y-1 text-xs text-black leading-relaxed"
-                >
-                  <li
-                    v-for="(bullet, itemIdx) in block.items"
-                    :key="itemIdx"
-                    v-html="formatInline(bullet)"
-                  ></li>
-                </ul>
-
-                <!-- Paragraph -->
-                <p
-                  v-else-if="block.type === 'paragraph'"
-                  class="text-xs text-black leading-relaxed"
-                  v-html="formatInline(block.raw)"
-                ></p>
-              </template>
+        <!-- Tier 1: Document Title, Status Badge & Primary Actions -->
+        <div class="flex items-center justify-between gap-4 pb-2.5 border-b border-slate-800/80">
+          <!-- Left: Title & Page Badge -->
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="flex items-center gap-2 truncate">
+              <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="text-sm sm:text-base font-semibold text-slate-100 truncate">
+                {{ parsedResume.name ? `${parsedResume.name} — Resume` : props.title || 'Resume Preview' }}
+              </span>
             </div>
-          </section>
+
+            <!-- Live Page Badge -->
+            <span
+              v-if="pageCount === 1"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-600/40 shadow-xs shrink-0"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+              <span>✓ 1 Page (A4)</span>
+            </span>
+            <span
+              v-else
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-600/40 shadow-xs shrink-0"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>2 Pages (A4)</span>
+            </span>
+          </div>
+
+          <!-- Right: Print CTA & Modal Close -->
+          <div class="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-2 transition-all shadow-md hover:shadow-emerald-600/20 active:scale-95 cursor-pointer"
+              @click="handlePrint"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              <span>Print / Save as PDF</span>
+            </button>
+
+            <div class="h-6 w-px bg-slate-700/80 mx-1"></div>
+
+            <button
+              type="button"
+              class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              @click="emit('close')"
+              aria-label="Close"
+              title="Close Preview (Esc)"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
-      </article>
 
-      <!-- ==================== TEMPLATE 2: MODERN MINIMALIST ==================== -->
-      <article
-        v-else-if="selectedTemplate === 'modern'"
-        class="resume-sheet w-full max-w-[850px] min-h-[1050px] bg-white text-slate-800 p-8 sm:p-12 shadow-2xl rounded-sm font-sans"
-      >
-        <!-- Header -->
-        <header class="border-b border-slate-200 pb-4 mb-5">
-          <div class="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
-                {{ parsedResume.name }}
-              </h1>
-              <div class="h-1 w-12 bg-amber-500 rounded mt-1.5 mb-2"></div>
-            </div>
-          </div>
-          <div
-            v-if="parsedResume.contactLines.length"
-            class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 mt-2"
-          >
-            <div
-              v-for="(cLine, idx) in parsedResume.contactLines"
-              :key="idx"
-              class="flex items-center gap-2"
-            >
-              <span v-if="idx > 0" class="text-amber-500 font-bold">•</span>
-              <span v-html="formatInline(cLine)"></span>
-            </div>
-          </div>
-        </header>
-
-        <!-- Sections -->
-        <div class="space-y-5">
-          <section
-            v-for="(sec, sIdx) in parsedResume.sections"
-            :key="sIdx"
-            class="section-block"
-          >
-            <div
-              v-if="sec.title"
-              class="border-b-2 border-amber-500 pb-1 mb-2.5 flex items-center justify-between"
-            >
-              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">
-                {{ sec.title }}
-              </h2>
-            </div>
-
-            <div class="space-y-2">
-              <template v-for="(block, bIdx) in sec.blocks" :key="bIdx">
-                <!-- Subheading -->
-                <div
-                  v-if="block.type === 'subheading'"
-                  class="flex justify-between items-baseline text-xs pt-1.5"
-                >
-                  <span
-                    class="font-bold text-slate-900"
-                    v-html="formatInline(block.primary)"
-                  ></span>
-                  <span
-                    v-if="block.secondary"
-                    class="text-amber-800 font-medium text-[11px] shrink-0 ml-4"
-                    v-html="formatInline(block.secondary)"
-                  ></span>
-                </div>
-
-                <!-- Skills section badges -->
-                <div
-                  v-else-if="block.type === 'bullets' && isSkillsSection(sec.title)"
-                  class="flex flex-wrap gap-1.5 py-1"
-                >
-                  <span
-                    v-for="(bullet, itemIdx) in block.items"
-                    :key="itemIdx"
-                    class="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-900 border border-amber-200/70"
-                    v-html="formatInline(bullet)"
-                  ></span>
-                </div>
-
-                <!-- Bullets -->
-                <ul
-                  v-else-if="block.type === 'bullets'"
-                  class="list-disc list-outside ml-4 space-y-1 text-xs text-slate-700 leading-relaxed marker:text-amber-500"
-                >
-                  <li
-                    v-for="(bullet, itemIdx) in block.items"
-                    :key="itemIdx"
-                    v-html="formatInline(bullet)"
-                  ></li>
-                </ul>
-
-                <!-- Skills paragraph with badges -->
-                <div
-                  v-else-if="block.type === 'paragraph' && isSkillsSection(sec.title) && parseCategorySkills(block.raw).skills.length > 1"
-                  class="text-xs py-1"
-                >
-                  <span
-                    v-if="parseCategorySkills(block.raw).label"
-                    class="font-semibold text-slate-800 mr-2"
-                  >
-                    {{ parseCategorySkills(block.raw).label }}:
-                  </span>
-                  <div class="inline-flex flex-wrap gap-1.5 mt-0.5">
-                    <span
-                      v-for="(skill, skIdx) in parseCategorySkills(block.raw).skills"
-                      :key="skIdx"
-                      class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50/80 text-amber-900 border border-amber-200/60"
-                      v-html="formatInline(skill)"
-                    ></span>
-                  </div>
-                </div>
-
-                <!-- Paragraph -->
-                <p
-                  v-else-if="block.type === 'paragraph'"
-                  class="text-xs text-slate-700 leading-relaxed"
-                  v-html="formatInline(block.raw)"
-                ></p>
-              </template>
-            </div>
-          </section>
-        </div>
-      </article>
-
-      <!-- ==================== TEMPLATE 3: EXECUTIVE ==================== -->
-      <article
-        v-else-if="selectedTemplate === 'executive'"
-        class="resume-sheet w-full max-w-[850px] min-h-[1050px] bg-white text-slate-900 p-8 sm:p-12 shadow-2xl rounded-sm font-sans"
-      >
-        <!-- Elegant Header Bar -->
-        <header
-          class="bg-slate-900 text-white -mx-8 sm:-mx-12 -mt-8 sm:-mt-12 p-8 sm:p-10 mb-6 print:mx-0 print:mt-0 print:p-5 print:rounded-none"
-        >
-          <div class="flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-serif font-bold text-white tracking-wide">
-                {{ parsedResume.name }}
-              </h1>
-              <div
-                v-if="parsedResume.contactLines.length"
-                class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300 mt-2 font-sans"
+        <!-- Tier 2: Formatting & View Toolbar -->
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <!-- Left: Template, Mode, Density Clusters -->
+          <div class="flex items-center gap-3 flex-wrap">
+            <!-- Cluster 1: Template Switcher -->
+            <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs">
+              <button
+                type="button"
+                class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
+                :class="selectedTemplate === 'ats' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                @click="selectedTemplate = 'ats'"
               >
-                <div
-                  v-for="(cLine, idx) in parsedResume.contactLines"
-                  :key="idx"
-                  class="flex items-center gap-2"
+                ATS Standard
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
+                :class="selectedTemplate === 'modern' ? 'bg-amber-500 text-slate-950 font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                @click="selectedTemplate = 'modern'"
+              >
+                Modern Minimalist
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
+                :class="selectedTemplate === 'executive' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                @click="selectedTemplate = 'executive'"
+              >
+                Executive
+              </button>
+            </div>
+
+            <div class="hidden sm:block h-5 w-px bg-slate-700/80"></div>
+
+            <!-- Cluster 2: Layout (Page Mode & Density) -->
+            <div class="flex items-center gap-2">
+              <!-- Page Mode -->
+              <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                  :class="pageMode === 'fit' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  @click="pageMode = 'fit'"
                 >
-                  <span v-if="idx > 0" class="text-slate-500">•</span>
-                  <span v-html="formatInline(cLine)"></span>
-                </div>
+                  <span>📄 Fit 1 Page</span>
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                  :class="pageMode === 'multi' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  @click="pageMode = 'multi'"
+                >
+                  <span>📑 Multi-Page</span>
+                </button>
+              </div>
+
+              <!-- Density -->
+              <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs">
+                <button
+                  type="button"
+                  class="px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
+                  :class="selectedDensity === 'compact' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  @click="selectedDensity = 'compact'"
+                >
+                  Compact
+                </button>
+                <button
+                  type="button"
+                  class="px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
+                  :class="selectedDensity === 'normal' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  @click="selectedDensity = 'normal'"
+                >
+                  Normal
+                </button>
               </div>
             </div>
           </div>
-        </header>
 
-        <!-- Sections -->
-        <div class="space-y-4">
-          <section
-            v-for="(sec, sIdx) in parsedResume.sections"
-            :key="sIdx"
-            class="section-block"
-          >
-            <h2
-              v-if="sec.title"
-              class="font-serif text-xs font-bold uppercase tracking-widest text-slate-900 border-b-2 border-slate-300 pb-1 mb-2"
+          <!-- Right: Zoom Controls -->
+          <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs ml-auto">
+            <button
+              type="button"
+              class="px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors cursor-pointer"
+              :class="Math.round(zoom * 100) === 80 ? 'bg-slate-700 text-white font-semibold' : 'text-slate-300 hover:text-white'"
+              title="Fit Screen (~80%)"
+              @click="zoom = 0.8"
             >
-              {{ sec.title }}
-            </h2>
-
-            <div class="space-y-1.5">
-              <template v-for="(block, bIdx) in sec.blocks" :key="bIdx">
-                <!-- Subheading with Right-aligned Date -->
-                <div
-                  v-if="block.type === 'subheading'"
-                  class="flex justify-between items-baseline text-xs pt-1.5"
-                >
-                  <span
-                    class="font-semibold text-slate-900 font-sans"
-                    v-html="formatInline(block.primary)"
-                  ></span>
-                  <span
-                    v-if="block.secondary"
-                    class="font-mono text-[11px] text-slate-600 font-medium shrink-0 ml-4"
-                    v-html="formatInline(block.secondary)"
-                  ></span>
-                </div>
-
-                <!-- Bullets -->
-                <ul
-                  v-else-if="block.type === 'bullets'"
-                  class="list-disc list-outside ml-4 space-y-0.5 text-xs text-slate-800 leading-normal"
-                >
-                  <li
-                    v-for="(bullet, itemIdx) in block.items"
-                    :key="itemIdx"
-                    v-html="formatInline(bullet)"
-                  ></li>
-                </ul>
-
-                <!-- Paragraph -->
-                <p
-                  v-else-if="block.type === 'paragraph'"
-                  class="text-xs text-slate-800 leading-normal"
-                  v-html="formatInline(block.raw)"
-                ></p>
-              </template>
-            </div>
-          </section>
+              Fit Screen
+            </button>
+            <button
+              type="button"
+              class="p-1.5 text-slate-300 hover:text-white rounded-lg transition-colors disabled:opacity-30 cursor-pointer"
+              :disabled="zoom <= 0.4"
+              title="Zoom Out (10%)"
+              @click="zoom = Math.max(0.4, Math.round((zoom - 0.1) * 10) / 10)"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="px-2 py-1.5 text-xs sm:text-sm font-mono font-medium rounded-lg transition-colors cursor-pointer"
+              :class="Math.round(zoom * 100) === 100 ? 'bg-slate-700 text-white font-semibold' : 'text-slate-300 hover:text-white'"
+              title="Reset to 100%"
+              @click="zoom = 1.0"
+            >
+              {{ Math.round(zoom * 100) }}%
+            </button>
+            <button
+              type="button"
+              class="p-1.5 text-slate-300 hover:text-white rounded-lg transition-colors disabled:opacity-30 cursor-pointer"
+              :disabled="zoom >= 1.6"
+              title="Zoom In (10%)"
+              @click="zoom = Math.min(1.6, Math.round((zoom + 0.1) * 10) / 10)"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
         </div>
-      </article>
+      </header>
+
+      <!-- Printable Resume Sheet Container -->
+      <div
+        class="preview-sheet-wrapper flex flex-col items-center pb-12 origin-top"
+        :style="{
+          transform: `scale(${zoom})`,
+          transformOrigin: 'top center'
+        }"
+      >
+        <template v-for="(pageSections, pageIndex) in pages" :key="pageIndex">
+          <!-- Multi-Page Divider on Screen (Hidden in print) -->
+          <div
+            v-if="pageIndex > 0"
+            class="no-print my-6 flex items-center justify-center gap-3 text-xs font-semibold uppercase tracking-widest text-slate-400 select-none"
+          >
+            <span class="text-slate-600 font-mono">———</span>
+            <span>Page {{ pageIndex + 1 }} of {{ pages.length }}</span>
+            <span class="text-slate-600 font-mono">———</span>
+          </div>
+
+          <!-- True A4 Physical Sheet (210mm x 297mm) -->
+          <article
+            class="a4-page-sheet shadow-2xl relative select-text"
+            :class="[
+              `template-${selectedTemplate}`,
+              `density-${selectedDensity}`,
+              { 'fit-one-page': pageMode === 'fit' }
+            ]"
+            :data-page="pageIndex + 1"
+          >
+            <!-- ==================== TEMPLATE 1: ATS STANDARD ==================== -->
+            <div v-if="selectedTemplate === 'ats'" class="font-sans text-black">
+              <!-- Page 1 ATS Header -->
+              <header v-if="pageIndex === 0" class="text-center border-b border-black pb-2.5 mb-3.5 ats-header">
+                <h1 class="text-2xl font-bold uppercase tracking-wider text-black">
+                  {{ parsedResume.name }}
+                </h1>
+                <div
+                  v-if="parsedResume.contactLines.length"
+                  class="text-xs text-black mt-1 space-y-0.5 leading-normal ats-contact"
+                >
+                  <div
+                    v-for="(cLine, idx) in parsedResume.contactLines"
+                    :key="idx"
+                    v-html="formatInline(cLine)"
+                  ></div>
+                </div>
+              </header>
+
+              <!-- Page 2 ATS Running Header -->
+              <header
+                v-else
+                class="border-b border-black pb-1.5 mb-3 flex items-center justify-between text-xs text-black ats-page2-header"
+              >
+                <span class="font-bold uppercase tracking-wider">{{ parsedResume.name }}</span>
+                <span class="text-[11px] text-slate-600 font-mono">Page {{ pageIndex + 1 }} of {{ pages.length }}</span>
+              </header>
+
+              <!-- Sections -->
+              <div class="space-y-3">
+                <section
+                  v-for="(sec, sIdx) in pageSections"
+                  :key="sIdx"
+                  class="section-block"
+                >
+                  <h2
+                    v-if="sec.title"
+                    class="text-xs font-bold uppercase tracking-widest text-black border-b border-black pb-0.5 mb-1.5"
+                  >
+                    {{ sec.title }}
+                  </h2>
+
+                  <div class="space-y-1.5">
+                    <template v-for="(block, bIdx) in sec.blocks" :key="bIdx">
+                      <!-- Subheading -->
+                      <div
+                        v-if="block.type === 'subheading'"
+                        class="subheading-item flex justify-between items-baseline text-xs font-bold text-black pt-0.5"
+                      >
+                        <span v-html="formatInline(block.primary)"></span>
+                        <span
+                          v-if="block.secondary"
+                          class="font-normal text-right shrink-0 ml-4"
+                          v-html="formatInline(block.secondary)"
+                        ></span>
+                      </div>
+
+                      <!-- Bullets -->
+                      <ul
+                        v-else-if="block.type === 'bullets'"
+                        class="list-disc list-outside ml-4 space-y-0.5 text-xs text-black leading-relaxed"
+                      >
+                        <li
+                          v-for="(bullet, itemIdx) in block.items"
+                          :key="itemIdx"
+                          v-html="formatInline(bullet)"
+                        ></li>
+                      </ul>
+
+                      <!-- Paragraph -->
+                      <p
+                        v-else-if="block.type === 'paragraph'"
+                        class="text-xs text-black leading-relaxed"
+                        v-html="formatInline(block.raw)"
+                      ></p>
+                    </template>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <!-- ==================== TEMPLATE 2: MODERN MINIMALIST ==================== -->
+            <div v-else-if="selectedTemplate === 'modern'" class="font-sans text-slate-800">
+              <!-- Page 1 Modern Header -->
+              <header v-if="pageIndex === 0" class="border-b border-slate-200 pb-3 mb-3.5 modern-header">
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+                      {{ parsedResume.name }}
+                    </h1>
+                    <div class="h-1 w-12 bg-amber-500 rounded mt-1 mb-1.5"></div>
+                  </div>
+                </div>
+                <div
+                  v-if="parsedResume.contactLines.length"
+                  class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 mt-1"
+                >
+                  <div
+                    v-for="(cLine, idx) in parsedResume.contactLines"
+                    :key="idx"
+                    class="flex items-center gap-2"
+                  >
+                    <span v-if="idx > 0" class="text-amber-500 font-bold">•</span>
+                    <span v-html="formatInline(cLine)"></span>
+                  </div>
+                </div>
+              </header>
+
+              <!-- Page 2 Modern Running Header -->
+              <header
+                v-else
+                class="border-b border-amber-500/40 pb-1.5 mb-3 flex items-center justify-between text-xs modern-page2-header"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-slate-900">{{ parsedResume.name }}</span>
+                  <span class="h-1 w-3 bg-amber-500 rounded inline-block"></span>
+                </div>
+                <span class="text-[11px] font-medium text-amber-800">Page {{ pageIndex + 1 }} of {{ pages.length }}</span>
+              </header>
+
+              <!-- Sections -->
+              <div class="space-y-3">
+                <section
+                  v-for="(sec, sIdx) in pageSections"
+                  :key="sIdx"
+                  class="section-block"
+                >
+                  <div
+                    v-if="sec.title"
+                    class="border-b-2 border-amber-500 pb-0.5 mb-1.5 flex items-center justify-between"
+                  >
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">
+                      {{ sec.title }}
+                    </h2>
+                  </div>
+
+                  <div class="space-y-1.5">
+                    <template v-for="(block, bIdx) in sec.blocks" :key="bIdx">
+                      <!-- Subheading -->
+                      <div
+                        v-if="block.type === 'subheading'"
+                        class="subheading-item flex justify-between items-baseline text-xs pt-0.5"
+                      >
+                        <span
+                          class="font-bold text-slate-900"
+                          v-html="formatInline(block.primary)"
+                        ></span>
+                        <span
+                          v-if="block.secondary"
+                          class="text-amber-800 font-medium text-[11px] shrink-0 ml-4"
+                          v-html="formatInline(block.secondary)"
+                        ></span>
+                      </div>
+
+                      <!-- Skills Section Badges for Bullets -->
+                      <div
+                        v-else-if="block.type === 'bullets' && isSkillsSection(sec.title)"
+                        class="flex flex-wrap gap-1.5 py-0.5"
+                      >
+                        <span
+                          v-for="(bullet, itemIdx) in block.items"
+                          :key="itemIdx"
+                          class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-900 border border-amber-200/70"
+                          v-html="formatInline(bullet)"
+                        ></span>
+                      </div>
+
+                      <!-- Bullets -->
+                      <ul
+                        v-else-if="block.type === 'bullets'"
+                        class="list-disc list-outside ml-4 space-y-0.5 text-xs text-slate-700 leading-relaxed marker:text-amber-500"
+                      >
+                        <li
+                          v-for="(bullet, itemIdx) in block.items"
+                          :key="itemIdx"
+                          v-html="formatInline(bullet)"
+                        ></li>
+                      </ul>
+
+                      <!-- Skills Paragraph with Badges -->
+                      <div
+                        v-else-if="block.type === 'paragraph' && isSkillsSection(sec.title) && parseCategorySkills(block.raw).skills.length > 1"
+                        class="text-xs py-0.5"
+                      >
+                        <span
+                          v-if="parseCategorySkills(block.raw).label"
+                          class="font-semibold text-slate-800 mr-2"
+                        >
+                          {{ parseCategorySkills(block.raw).label }}:
+                        </span>
+                        <div class="inline-flex flex-wrap gap-1.5 mt-0.5">
+                          <span
+                            v-for="(skill, skIdx) in parseCategorySkills(block.raw).skills"
+                            :key="skIdx"
+                            class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50/80 text-amber-900 border border-amber-200/60"
+                            v-html="formatInline(skill)"
+                          ></span>
+                        </div>
+                      </div>
+
+                      <!-- Paragraph -->
+                      <p
+                        v-else-if="block.type === 'paragraph'"
+                        class="text-xs text-slate-700 leading-relaxed"
+                        v-html="formatInline(block.raw)"
+                      ></p>
+                    </template>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <!-- ==================== TEMPLATE 3: EXECUTIVE ==================== -->
+            <div v-else-if="selectedTemplate === 'executive'" class="font-sans text-slate-900">
+              <!-- Page 1 Executive Banner -->
+              <header
+                v-if="pageIndex === 0"
+                class="bg-slate-900 text-white executive-header"
+                :style="{
+                  marginLeft: selectedDensity === 'compact' || pageMode === 'fit' ? '-10mm' : '-14mm',
+                  marginRight: selectedDensity === 'compact' || pageMode === 'fit' ? '-10mm' : '-14mm',
+                  marginTop: pageMode === 'fit' ? '-8mm' : (selectedDensity === 'compact' ? '-10mm' : '-14mm'),
+                  padding: selectedDensity === 'compact' || pageMode === 'fit' ? '18px 24px' : '22px 30px',
+                  marginBottom: selectedDensity === 'compact' || pageMode === 'fit' ? '12px' : '16px'
+                }"
+              >
+                <div class="flex items-start justify-between flex-wrap gap-4">
+                  <div>
+                    <h1 class="text-2xl sm:text-3xl font-serif font-bold text-white tracking-wide">
+                      {{ parsedResume.name }}
+                    </h1>
+                    <div
+                      v-if="parsedResume.contactLines.length"
+                      class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300 mt-1 font-sans"
+                    >
+                      <div
+                        v-for="(cLine, idx) in parsedResume.contactLines"
+                        :key="idx"
+                        class="flex items-center gap-2"
+                      >
+                        <span v-if="idx > 0" class="text-slate-500">•</span>
+                        <span v-html="formatInline(cLine)"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </header>
+
+              <!-- Page 2 Executive Running Header -->
+              <header
+                v-else
+                class="border-b-2 border-slate-300 pb-1.5 mb-3 flex items-center justify-between text-xs text-slate-900 executive-page2-header"
+              >
+                <span class="font-serif font-bold text-slate-900 tracking-wide">{{ parsedResume.name }}</span>
+                <span class="font-mono text-[11px] text-slate-600">Page {{ pageIndex + 1 }} of {{ pages.length }}</span>
+              </header>
+
+              <!-- Sections -->
+              <div class="space-y-3">
+                <section
+                  v-for="(sec, sIdx) in pageSections"
+                  :key="sIdx"
+                  class="section-block"
+                >
+                  <h2
+                    v-if="sec.title"
+                    class="font-serif text-xs font-bold uppercase tracking-widest text-slate-900 border-b-2 border-slate-300 pb-0.5 mb-1.5"
+                  >
+                    {{ sec.title }}
+                  </h2>
+
+                  <div class="space-y-1">
+                    <template v-for="(block, bIdx) in sec.blocks" :key="bIdx">
+                      <!-- Subheading with Right-aligned Date -->
+                      <div
+                        v-if="block.type === 'subheading'"
+                        class="subheading-item flex justify-between items-baseline text-xs pt-0.5"
+                      >
+                        <span
+                          class="font-semibold text-slate-900 font-sans"
+                          v-html="formatInline(block.primary)"
+                        ></span>
+                        <span
+                          v-if="block.secondary"
+                          class="font-mono text-[11px] text-slate-600 font-medium shrink-0 ml-4"
+                          v-html="formatInline(block.secondary)"
+                        ></span>
+                      </div>
+
+                      <!-- Bullets -->
+                      <ul
+                        v-else-if="block.type === 'bullets'"
+                        class="list-disc list-outside ml-4 space-y-0.5 text-xs text-slate-800 leading-normal"
+                      >
+                        <li
+                          v-for="(bullet, itemIdx) in block.items"
+                          :key="itemIdx"
+                          v-html="formatInline(bullet)"
+                        ></li>
+                      </ul>
+
+                      <!-- Paragraph -->
+                      <p
+                        v-else-if="block.type === 'paragraph'"
+                        class="text-xs text-slate-800 leading-normal"
+                        v-html="formatInline(block.raw)"
+                      ></p>
+                    </template>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </article>
+        </template>
+      </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped>
+/* True A4 Physical Sheet */
+.a4-page-sheet {
+  box-sizing: border-box;
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  background: #ffffff;
+  position: relative;
+}
+
+/* Density: Normal (14mm margins, 10.5pt text, 1.35 line-height) */
+.a4-page-sheet.density-normal {
+  padding: 14mm;
+  font-size: 10.5pt;
+  line-height: 1.35;
+}
+.a4-page-sheet.density-normal h1 {
+  font-size: 22pt;
+  line-height: 1.2;
+}
+.a4-page-sheet.density-normal h2 {
+  font-size: 11pt;
+}
+.a4-page-sheet.density-normal li {
+  margin-bottom: 1.4mm;
+}
+
+/* Density: Compact (10mm margins, 9.5pt text, 1.25 line-height) */
+.a4-page-sheet.density-compact {
+  padding: 10mm;
+  font-size: 9.5pt;
+  line-height: 1.25;
+}
+.a4-page-sheet.density-compact h1 {
+  font-size: 18pt;
+  line-height: 1.15;
+}
+.a4-page-sheet.density-compact h2 {
+  font-size: 10pt;
+}
+.a4-page-sheet.density-compact li {
+  margin-bottom: 0.8mm;
+}
+
+/* Fit to 1 Page Compression */
+.a4-page-sheet.fit-one-page {
+  padding: 8mm 10mm !important;
+  font-size: 9pt !important;
+  line-height: 1.22 !important;
+}
+.a4-page-sheet.fit-one-page header.ats-header,
+.a4-page-sheet.fit-one-page header.modern-header {
+  margin-bottom: 2.5mm !important;
+  padding-bottom: 1.5mm !important;
+}
+.a4-page-sheet.fit-one-page h1 {
+  font-size: 16pt !important;
+  line-height: 1.15 !important;
+  margin-bottom: 1mm !important;
+}
+.a4-page-sheet.fit-one-page h2 {
+  font-size: 9.5pt !important;
+  margin-bottom: 1.2mm !important;
+  padding-bottom: 0.5mm !important;
+}
+.a4-page-sheet.fit-one-page .section-block {
+  margin-bottom: 2mm !important;
+}
+.a4-page-sheet.fit-one-page li {
+  font-size: 8.5pt !important;
+  line-height: 1.22 !important;
+  margin-bottom: 0.4mm !important;
+}
+
 @media print {
-  /* Hide all interactive app elements */
   .no-print {
     display: none !important;
   }
-
-  /* Reset outer container */
   .preview-modal-backdrop {
     position: static !important;
     background: transparent !important;
@@ -610,7 +1065,6 @@ const parsedResume = computed(() => {
     inset: auto !important;
     z-index: auto !important;
   }
-
   .preview-sheet-wrapper {
     padding: 0 !important;
     margin: 0 !important;
@@ -619,28 +1073,40 @@ const parsedResume = computed(() => {
     width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
+    transform: none !important;
   }
-
-  .resume-sheet {
+  .a4-page-sheet {
     box-shadow: none !important;
     border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-height: auto !important;
     border-radius: 0 !important;
-    page-break-after: avoid;
-    background: white !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 auto !important;
+    overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-
-  .section-block {
-    page-break-inside: avoid;
+  .a4-page-sheet:last-of-type,
+  .a4-page-sheet:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
-
+  h1, h2, h3, header, .subheading-item {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+  li {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
   @page {
-    size: auto;
-    margin: 15mm;
+    size: A4 portrait;
+    margin: 0;
   }
 }
 </style>

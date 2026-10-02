@@ -47,7 +47,7 @@ function submit() {
 
 <template>
   <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+    <div class="bg-white rounded-xl shadow-xl border-t-4 border-indigo-500 w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
       <h2 class="text-xl font-bold text-slate-800 mb-4">
         {{ application ? "Edit Application" : "New Application" }}
       </h2>
@@ -137,7 +137,7 @@ function submit() {
               @click="emit('close')">
               Discard
             </button>
-            <button type="submit" class="px-4 py-2 text-sm sm:text-base font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800">
+            <button type="submit" class="px-4 py-2 text-sm sm:text-base font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700">
               Save Application
             </button>
           </div>

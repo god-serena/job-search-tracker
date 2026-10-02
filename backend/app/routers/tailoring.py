@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from .. import crud, prompts, schemas
 from ..database import get_db
+from ..llm import clean_thinking_tags
 
 router = APIRouter(prefix="/api/applications", tags=["tailoring"])
 
@@ -97,7 +98,7 @@ def generate_local_tailored_resume(
         payload.model.strip()
         if payload and payload.model and payload.model.strip()
         else None
-    ) or os.getenv("LOCAL_LLM_MODEL", "Qwythos-9B")
+    ) or os.getenv("LOCAL_LLM_MODEL", "Swift-1.5-Qwen3.8-27B-GSQ-RCO")
     local_llm_url = os.getenv(
         "LOCAL_LLM_URL", "http://host.docker.internal:8080"
     ).rstrip("/")
@@ -120,7 +121,7 @@ def generate_local_tailored_resume(
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.2,
             },
-            timeout=120.0,
+            timeout=180.0,
         )
         res.raise_for_status()
         data = res.json()
@@ -128,10 +129,10 @@ def generate_local_tailored_resume(
         if choices and isinstance(choices, list) and len(choices) > 0:
             msg = choices[0].get("message", {})
             content = msg.get("content")
-            if not content or not str(content).strip():
-                content = msg.get("reasoning_content")
             if content and str(content).strip():
-                generated_text = str(content).strip()
+                sanitized = clean_thinking_tags(str(content).strip())
+                if sanitized:
+                    generated_text = sanitized
     except Exception as exc:
         last_error = exc
 
@@ -144,13 +145,15 @@ def generate_local_tailored_resume(
                     "prompt": prompt,
                     "temperature": 0.2,
                 },
-                timeout=120.0,
+                timeout=180.0,
             )
             res.raise_for_status()
             data = res.json()
             content = data.get("content")
             if content and str(content).strip():
-                generated_text = str(content).strip()
+                sanitized = clean_thinking_tags(str(content).strip())
+                if sanitized:
+                    generated_text = sanitized
         except Exception as exc:
             last_error = exc
 
@@ -164,13 +167,15 @@ def generate_local_tailored_resume(
                     "prompt": prompt,
                     "stream": False,
                 },
-                timeout=120.0,
+                timeout=180.0,
             )
             res.raise_for_status()
             data = res.json()
             response_val = data.get("response")
             if response_val and str(response_val).strip():
-                generated_text = str(response_val).strip()
+                sanitized = clean_thinking_tags(str(response_val).strip())
+                if sanitized:
+                    generated_text = sanitized
         except Exception as exc:
             last_error = exc
 
@@ -189,7 +194,7 @@ def generate_local_tailored_resume(
         db,
         application_id,
         schemas.TailoredResumeCreate(
-            content=generated_text,
+            content=clean_thinking_tags(generated_text),
             source=f"local:{model}",
         ),
     )

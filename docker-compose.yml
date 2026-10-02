@@ -46,7 +46,7 @@ services:
     environment:
       DATABASE_URL: postgresql://jobsearch:jobsearch@db:5432/jobsearch
       LOCAL_LLM_URL: http://host.docker.internal:8080
-      LOCAL_LLM_MODEL: Qwythos-9B
+      LOCAL_LLM_MODEL: Swift-1.5-Qwen3.8-27B-GSQ-RCO
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

@@ -231,9 +231,14 @@ onMounted(() => {
 
       <!-- Column Counts & Add Action -->
       <div class="flex items-center justify-between">
-        <div class="flex gap-4 text-sm sm:text-base text-slate-500 flex-wrap">
-          <span v-for="c in columns" :key="c.key">
-            {{ c.label }}: <strong class="text-slate-700">{{ counts[c.key] }}</strong>
+        <div class="flex gap-2 flex-wrap">
+          <span
+            v-for="c in columns"
+            :key="c.key"
+            class="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-medium text-slate-600 shadow-sm"
+          >
+            {{ c.label }}
+            <strong class="text-slate-800 font-bold">{{ counts[c.key] }}</strong>
           </span>
         </div>
         <button
@@ -245,7 +250,7 @@ onMounted(() => {
       </div>
 
       <!-- Search, Filter & Sort Toolbar -->
-      <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="bg-slate-50/80 border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex flex-1 items-center gap-3 flex-wrap">
           <!-- Search input -->
           <div class="relative flex-1 min-w-[200px] max-w-xs">
@@ -289,7 +294,12 @@ onMounted(() => {
         <!-- Sort dropdown & Active filter status -->
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-2">
-            <label for="sort-select" class="text-sm font-medium text-slate-500 whitespace-nowrap">Sort by:</label>
+            <label for="sort-select" class="text-sm font-medium text-slate-500 whitespace-nowrap flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+              </svg>
+              Sort by:
+            </label>
             <select
               id="sort-select"
               v-model="sortBy"

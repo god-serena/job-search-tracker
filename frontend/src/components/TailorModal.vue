@@ -27,7 +27,7 @@ const loadingPrompt = ref(true);
 const promptError = ref(null);
 const copiedPrompt = ref(false);
 
-const localModel = ref("Qwythos-9B");
+const localModel = ref("Swift-1.5-Qwen3.8-27B-GSQ-RCO");
 const generatingLocal = ref(false);
 const localError = ref(null);
 const localSuccess = ref(null);
@@ -46,7 +46,7 @@ const copiedVersionId = ref(null);
 const expandedVersionIds = ref(new Set());
 
 // ==================== TAB 2: COVER LETTER STATE ====================
-const coverLetterModel = ref("Qwythos-9B");
+const coverLetterModel = ref("Swift-1.5-Qwen3.8-27B-GSQ-RCO");
 const generatingCoverLetter = ref(false);
 const coverLetterError = ref(null);
 const coverLetterSuccess = ref(null);
@@ -66,7 +66,7 @@ const outreachTemplates = [
   { value: "thank_you", label: "Post-Interview Thank You" },
   { value: "follow_up", label: "Status Follow-up" },
 ];
-const outreachModel = ref("Qwythos-9B");
+const outreachModel = ref("Swift-1.5-Qwen3.8-27B-GSQ-RCO");
 const generatingOutreach = ref(false);
 const outreachError = ref(null);
 const outreachSuccess = ref(null);
@@ -647,7 +647,7 @@ onUnmounted(() => {
                 id="local-llm-model"
                 v-model="localModel"
                 type="text"
-                placeholder="Qwythos-9B"
+                placeholder="Swift-1.5-Qwen3.8-27B-GSQ-RCO"
                 class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-400 placeholder:text-slate-400"
                 :disabled="generatingLocal"
               />
@@ -944,7 +944,7 @@ onUnmounted(() => {
               id="cover-letter-model"
               v-model="coverLetterModel"
               type="text"
-              placeholder="Qwythos-9B"
+              placeholder="Swift-1.5-Qwen3.8-27B-GSQ-RCO"
               class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-slate-400"
               :disabled="generatingCoverLetter"
             />
@@ -1139,7 +1139,7 @@ onUnmounted(() => {
               id="outreach-model"
               v-model="outreachModel"
               type="text"
-              placeholder="Qwythos-9B"
+              placeholder="Swift-1.5-Qwen3.8-27B-GSQ-RCO"
               class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-slate-400"
               :disabled="generatingOutreach"
             />
