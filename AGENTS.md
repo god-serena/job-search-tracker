@@ -44,8 +44,11 @@ Docker Compose for local dev with hot reload.
 ## Subagents
 
 **Orchestrator rules**
-- There is always one main orchestrator agent. It plans, delegates, reviews,
-  and verifies — subagents do the implementation.
+- **Strict role boundary**: The orchestrator must **NEVER** implement code
+  changes, edit project files, or execute implementation actions directly.
+  Its role is strictly limited to planning, task delegation, code review,
+  and verification. All implementation work belongs solely to subagents.
+- There is always one main orchestrator agent that coordinates the workflow.
 - If the orchestrator can spawn a subagent, use the `@local_llm` subagent;
   if not, use the `local-llm` script to interact with the local model.
 
