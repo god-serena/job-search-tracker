@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import KanbanBoard from "./components/KanbanBoard.vue";
 import ResumeModal from "./components/ResumeModal.vue";
-import AllDocumentsList from "./components/AllDocumentsList.vue";
+import AllDocumentsListModal from "./components/AllDocumentsListModal.vue";
 
 const isResumeOpen = ref(false);
 const isDocsModalOpen = ref(false);

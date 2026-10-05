@@ -11,6 +11,13 @@ const attachmentError = ref("");
 const uploading = ref(false);
 const supportedFileTypes = ".pdf,.doc,.docx,.rtf,.odt,.txt";
 
+// Format date to readable string
+function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
 const form = reactive({
   company: "",
   role: "",
@@ -191,24 +198,42 @@ function submit() {
           ></textarea>
         </label>
 
-        <section class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3" aria-labelledby="attachments-title">
-          <div>
-            <h3 id="attachments-title" class="text-sm font-semibold text-slate-800">Existing documents</h3>
-            <p class="text-xs text-slate-500">Attach PDF, Word, RTF, ODT, or TXT files (up to 10 MB). Create the application before uploading.</p>
-          </div>
-          <div v-if="application" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label v-for="kind in [{ value: 'resume', label: 'Resume' }, { value: 'cover_letter', label: 'Cover letter' }]" :key="kind.value" class="text-xs font-medium text-slate-700 flex flex-col gap-1">
-              Upload {{ kind.label }}
-              <input type="file" :accept="supportedFileTypes" :disabled="uploading" class="text-xs" @change="uploadDocument($event, kind.value)" />
+        <section aria-labelledby="attachments-title" class="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4">
+          <header class="flex items-start justify-between gap-4">
+            <div>
+              <h3 id="attachments-title" class="text-sm font-semibold text-slate-800">Documents</h3>
+              <p class="text-xs text-slate-500">Attach PDF, Word, RTF, ODT, or TXT files (up to 10 MB). Create the application before uploading.</p>
+            </div>
+            <p v-if="application" class="text-xs text-slate-600">{{ attachments.length }} {{ attachments.length === 1 ? 'attachment' : 'attachments' }}</p>
+          </header>
+
+          <div v-if="!application" class="text-xs text-amber-800">Save this application first to attach documents.</div>
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label v-for="kind in [{ value: 'resume', label: 'Resume' }, { value: 'cover_letter', label: 'Cover letter' }]" :key="kind.value" class="block">
+              <span class="text-xs font-medium text-slate-700 block mb-1">{{ kind.label }}</span>
+              <input type="file" :accept="supportedFileTypes" :disabled="uploading" @change="uploadDocument($event, kind.value)" class="block w-full text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 bg-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20" />
             </label>
           </div>
-          <p v-else class="text-xs text-amber-800">Save this application first to attach documents.</p>
-          <p v-if="uploading" role="status" class="text-xs text-slate-500">Uploading…</p>
-          <p v-if="attachmentError" role="alert" class="text-xs text-red-700">{{ attachmentError }}</p>
-          <ul v-if="attachments.length" class="space-y-1">
-            <li v-for="document in attachments" :key="document.id" class="text-xs flex items-center justify-between gap-2">
-              <span class="truncate text-slate-700">{{ document.document_type === 'resume' ? 'Resume' : 'Cover letter' }}: {{ document.filename }}</span>
-              <a class="text-amber-700 hover:underline shrink-0" :href="api.applicationDocumentDownloadUrl(application.id, document.id)" :download="document.filename">Download</a>
+
+          <div v-if="uploading" role="status" class="text-xs text-slate-500">Uploading…</div>
+          <div v-if="attachmentError" role="alert" class="text-xs text-red-600">{{ attachmentError }}</div>
+          <ul v-if="attachments.length" role="list" aria-label="Attached documents" class="border-t border-slate-200 pt-3 space-y-2">
+            <li v-for="document in attachments" :key="document.id" class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-600 font-medium truncate max-w-[160px]">
+                  {{ document.document_type === 'resume' ? 'Resume' : 'Cover letter' }}
+                </span>
+                <span class="text-xs text-slate-500 truncate">{{ document.filename }}</span>
+                <span class="text-xs text-slate-400">• {{ formatDate(document.created_at) }}</span>
+              </div>
+              <a
+                :href="api.applicationDocumentDownloadUrl(application.id, document.id)"
+                :download="document.filename"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-amber-600 hover:border-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 transition-colors"
+                :aria-label="`Download ${document.document_type === 'resume' ? 'Resume' : 'Cover letter'}: ${document.filename}`"
+              >
+                Download
+              </a>
             </li>
           </ul>
         </section>

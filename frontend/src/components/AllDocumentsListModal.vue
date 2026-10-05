@@ -1,4 +1,5 @@
 <script setup>
+import { ref, onMounted, onUnmounted } from "vue";
 import { api } from "../api";
 
 const emit = defineEmits(["close"]);
@@ -6,6 +7,21 @@ const emit = defineEmits(["close"]);
 const allDocuments = ref([]);
 const loading = ref(true);
 const error = ref("");
+
+let escapeHandler;
+
+function addEscapeListener() {
+  document.removeEventListener("keydown", escapeHandler);
+  escapeHandler = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", escapeHandler);
+}
+
+function removeEscapeListener() {
+  if (escapeHandler) {
+    document.removeEventListener("keydown", escapeHandler);
+    escapeHandler = null;
+  }
+}
 
 async function loadDocuments() {
   loading.value = true;
@@ -20,7 +36,16 @@ async function loadDocuments() {
   }
 }
 
-onMounted(loadDocuments);
+onMounted(() => {
+  addEscapeListener();
+  loadDocuments();
+});
+onUnmounted(removeEscapeListener);
+
+function close() {
+  emit("close");
+  removeEscapeListener();
+}
 
 // Format document type for display
 function formatDocType(type) {
@@ -39,9 +64,8 @@ function appLabel(doc) {
   return `${doc.company} / ${doc.role}`;
 }
 
-// Get download URL (global endpoint serves any app's docs)
-function getDownloadUrl(doc, id) {
-  return `${api.API_URL}/api/applications/${doc.application_id}/documents/${id}/download`;
+function getDownloadUrl(doc) {
+  return api.applicationDocumentDownloadUrl(doc.application_id, doc.id);
 }
 </script>
 
@@ -50,16 +74,11 @@ function getDownloadUrl(doc, id) {
     <div
       class="absolute inset-0 bg-slate-900/60"
       aria-hidden="true"
-      @click="emit('close')"
+      @click.self="close"
     ></div>
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="docs-modal-title"
-      class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50">
+    <div role="dialog" aria-modal="true" aria-labelledby="docs-modal-title" class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col relative z-10">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50">
         <h2 id="docs-modal-title" class="text-base sm:text-lg font-semibold text-slate-800">
           Application Documents
         </h2>
@@ -70,7 +89,7 @@ function getDownloadUrl(doc, id) {
           <button
             type="button"
             class="text-slate-400 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded p-1"
-            @click="emit('close')"
+            @click="close"
             aria-label="Close"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,32 +110,35 @@ function getDownloadUrl(doc, id) {
         <div v-else-if="allDocuments.length === 0" class="flex flex-col items-center justify-center py-8">
           <p class="text-sm text-slate-500">No documents uploaded yet.</p>
         </div>
-        <ul v-else role="list" aria-label="Document list" class="grid grid-cols-12 gap-3 sm:gap-4">
+        <ul v-else role="list" aria-label="Document list" class="flex flex-col gap-3">
           <li v-for="doc in allDocuments" :key="doc.id" class="border border-slate-200 rounded-lg p-3 hover:border-amber-300 hover:bg-amber-50 transition-colors">
-            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-0">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                    {{ formatDocType(doc.document_type) }}
-                  </span>
-                  <span class="text-xs text-slate-400">
-                    • {{ formatDate(doc.created_at) }}
-                  </span>
-                </div>
-                <p class="text-sm font-medium text-slate-800 truncate">{{ doc.filename }}</p>
+            <div class="flex flex-col gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                  {{ formatDocType(doc.document_type) }}
+                </span>
+                <span class="text-xs text-slate-500">
+                  • {{ formatDate(doc.created_at) }}
+                </span>
               </div>
-              <a
-                :href="getDownloadUrl(doc, doc.id)"
-                :download="doc.filename"
-                class="text-xs sm:text-sm font-medium px-2.5 py-1.5 rounded-md border border-slate-200 hover:border-amber-400 hover:bg-amber-50 text-slate-700 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 transition-colors whitespace-nowrap"
-                :aria-label="`Download ${doc.filename} (${formatDocType(doc.document_type)}) from ${appLabel(doc)}`"
-              >
-                Download
-              </a>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-slate-800 truncate">{{ doc.filename }}</p>
+                  <p class="text-xs text-slate-500 truncate">{{ doc.company }} — {{ doc.role }}</p>
+                </div>
+                <a
+                  :href="getDownloadUrl(doc)"
+                  :download="doc.filename"
+                  class="text-xs font-medium px-2.5 py-1.5 rounded-md border border-slate-200 hover:border-amber-400 hover:bg-amber-50 text-slate-700 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 transition-colors"
+                  :aria-label="`Download ${doc.filename} (${formatDocType(doc.document_type)}) from ${appLabel(doc)}`"
+                >
+                  Download
+                </a>
+              </div>
             </div>
           </li>
         </ul>
       </div>
-    </div>
   </div>
+</div>
 </template>

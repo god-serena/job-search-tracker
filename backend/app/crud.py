@@ -121,23 +121,36 @@ def get_application_document(db: Session, document_id: uuid.UUID):
 
 def get_all_application_documents(db: Session):
     rows = (
-        db.query(models.ApplicationDocument, models.Application.company, models.Application.role)
-        .join(models.Application, models.Application.id == models.ApplicationDocument.application_id)
+        db.query(
+            models.ApplicationDocument.id,
+            models.ApplicationDocument.application_id,
+            models.ApplicationDocument.document_type,
+            models.ApplicationDocument.filename,
+            models.ApplicationDocument.media_type,
+            models.ApplicationDocument.created_at,
+            models.Application.company,
+            models.Application.role,
+        )
+        .join(
+            models.Application,
+            models.Application.id == models.ApplicationDocument.application_id,
+            isouter=True,
+        )
         .order_by(models.ApplicationDocument.created_at.desc())
         .all()
     )
     return [
         {
-            "id": document.id,
-            "application_id": document.application_id,
-            "document_type": document.document_type,
-            "filename": document.filename,
-            "media_type": document.media_type,
-            "created_at": document.created_at,
-            "company": company,
-            "role": role,
+            "id": row.id,
+            "application_id": row.application_id,
+            "document_type": row.document_type,
+            "filename": row.filename,
+            "media_type": row.media_type,
+            "created_at": row.created_at,
+            "company": row.company,
+            "role": row.role,
         }
-        for document, company, role in rows
+        for row in rows
     ]
 
 

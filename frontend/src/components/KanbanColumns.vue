@@ -5,6 +5,7 @@ const props = defineProps({
   columns: { type: Array, required: true },
   grouped: { type: Object, required: true },
   colStyle: { type: Object, required: true },
+  documentsMap: { type: Object, default: () => ({}) },
 });
 
 const emit = defineEmits(["drop", "edit", "dragstart", "tailor"]);
@@ -49,6 +50,7 @@ const dotColor = {
                 v-for="app in grouped[col.key]"
                 :key="app.id"
                 :application="app"
+                :documents="documentsMap[app.id] || []"
                 @edit="emit('edit', $event)"
                 @dragstart="emit('dragstart', $event)"
                 @tailor="emit('tailor', $event)"

@@ -36,6 +36,24 @@ const draggedId = ref(null);
 const tailorModalOpen = ref(false);
 const tailorApplication = ref(null);
 
+const documentMap = ref({});
+
+function loadAllDocuments() {
+  // Fetch all application documents once; errors are non-fatal
+  api.getAllApplicationDocuments().then((docs) => {
+    const grouped = {};
+    for (const doc of docs) {
+      if (!grouped[doc.application_id]) grouped[doc.application_id] = [];
+      grouped[doc.application_id].push(doc);
+    }
+    // Reorder by most recent first (created_at)
+    for (const appId of Object.keys(grouped)) {
+      grouped[appId].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    }
+    documentMap.value = grouped;
+  }).catch((e) => console.error("Failed to load application documents:", e));
+}
+
 // Search, filtering, and sorting state
 const searchQuery = ref("");
 const selectedFilter = ref("all"); // 'all' | 'needs_followup' | 'has_description'
@@ -170,6 +188,21 @@ function openTailorModal(application) {
   tailorModalOpen.value = true;
 }
 
+function onModalClose() {
+  modalOpen.value = false;
+  loadAllDocuments();
+}
+
+async function deleteApplication(id) {
+  try {
+    await api.remove(id);
+    onModalClose();
+    await Promise.all([loadApplications(), loadStats()]);
+  } catch (e) {
+    error.value = e.message;
+  }
+}
+
 async function saveApplication(payload) {
   try {
     if (editingApplication.value) {
@@ -177,17 +210,7 @@ async function saveApplication(payload) {
     } else {
       await api.create(payload);
     }
-    modalOpen.value = false;
-    await Promise.all([loadApplications(), loadStats()]);
-  } catch (e) {
-    error.value = e.message;
-  }
-}
-
-async function deleteApplication(id) {
-  try {
-    await api.remove(id);
-    modalOpen.value = false;
+    onModalClose();
     await Promise.all([loadApplications(), loadStats()]);
   } catch (e) {
     error.value = e.message;
@@ -217,7 +240,10 @@ async function onDrop(status) {
 onMounted(() => {
   loadApplications();
   loadStats();
+  loadAllDocuments();
 });
+
+
 </script>
 
 <template>
@@ -341,6 +367,7 @@ onMounted(() => {
       v-if="!loading && !error"
       :columns="columns"
       :grouped="grouped"
+      :documents-map="documentMap"
       :col-style="colStyle"
       class="flex-1 min-h-0"
       @drop="onDrop"
@@ -352,7 +379,7 @@ onMounted(() => {
     <ApplicationModal
       v-if="modalOpen"
       :application="editingApplication"
-      @close="modalOpen = false"
+      @close="onModalClose"
       @save="saveApplication"
       @delete="deleteApplication"
     />

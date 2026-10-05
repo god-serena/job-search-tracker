@@ -74,7 +74,7 @@ export const api = {
     }),
   listApplicationDocuments: (applicationId) =>
     request(`/api/applications/${applicationId}/documents`),
-  getAllApplicationDocuments: () => request("/api/application-documents"),
+  getAllApplicationDocuments: () => request("/api/application-documents/"),
   uploadApplicationDocument: (applicationId, documentType, file) => {
     const formData = new FormData();
     formData.append("document_type", documentType);

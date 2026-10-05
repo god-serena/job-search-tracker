@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 app.include_router(applications.router)
+app.include_router(application_documents.library_router)
 app.include_router(application_documents.router)
 app.include_router(resume.router)
 app.include_router(tailoring.router)
