@@ -72,6 +72,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ model }),
     }),
+  listApplicationDocuments: (applicationId) =>
+    request(`/api/applications/${applicationId}/documents`),
+  getAllApplicationDocuments: () => request("/api/application-documents"),
+  uploadApplicationDocument: (applicationId, documentType, file) => {
+    const formData = new FormData();
+    formData.append("document_type", documentType);
+    formData.append("file", file);
+    return request(`/api/applications/${applicationId}/documents`, {
+      method: "POST",
+      body: formData,
+    });
+  },
+  applicationDocumentDownloadUrl: (applicationId, documentId) =>
+    `${API_URL}/api/applications/${applicationId}/documents/${documentId}/download`,
   getOutreachPrompt: (applicationId, templateType = "cold_outreach") =>
     request(
       `/api/applications/${applicationId}/outreach/prompt?template_type=${templateType}`

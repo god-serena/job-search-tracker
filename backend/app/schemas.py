@@ -97,6 +97,21 @@ class DocumentOut(BaseModel):
     document_type: str
 
 
+class ApplicationDocumentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    application_id: uuid.UUID
+    document_type: str
+    filename: str
+    media_type: str
+    created_at: datetime
+
+
+class ApplicationDocumentLibraryItem(ApplicationDocumentOut):
+    company: str
+    role: str
+
 
 class StatsOut(BaseModel):
     total_applications: int

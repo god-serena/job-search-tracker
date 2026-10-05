@@ -92,6 +92,54 @@ def create_tailored_resume(
     return tailored
 
 
+def get_application_documents(db: Session, application_id: uuid.UUID):
+    return (
+        db.query(models.ApplicationDocument)
+        .filter(models.ApplicationDocument.application_id == application_id)
+        .order_by(models.ApplicationDocument.created_at.desc())
+        .all()
+    )
+
+
+def create_application_document(db: Session, application_id: uuid.UUID, document_type: str,
+                               filename: str, media_type: str, content: bytes):
+    document = models.ApplicationDocument(
+        application_id=application_id, document_type=document_type,
+        filename=filename, media_type=media_type, content=content,
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+def get_application_document(db: Session, document_id: uuid.UUID):
+    return db.query(models.ApplicationDocument).filter(
+        models.ApplicationDocument.id == document_id
+    ).first()
+
+
+def get_all_application_documents(db: Session):
+    rows = (
+        db.query(models.ApplicationDocument, models.Application.company, models.Application.role)
+        .join(models.Application, models.Application.id == models.ApplicationDocument.application_id)
+        .order_by(models.ApplicationDocument.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": document.id,
+            "application_id": document.application_id,
+            "document_type": document.document_type,
+            "filename": document.filename,
+            "media_type": document.media_type,
+            "created_at": document.created_at,
+            "company": company,
+            "role": role,
+        }
+        for document, company, role in rows
+    ]
+
 
 def get_application_stats(db: Session) -> schemas.StatsOut:
     applications = db.query(models.Application).all()

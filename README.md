@@ -59,6 +59,14 @@ Versioned resumes tailored per application:
 - `source` (String: e.g. "chatgpt", "claude", "gemini", "manual")
 - `created_at` (DateTime)
 
+### Application Documents
+Original uploaded files attached to an application:
+- `id` (UUID)
+- `application_id` (UUID foreign key -> applications.id, cascade-deleted)
+- `document_type`: `resume` | `cover_letter`
+- `filename`, `media_type`, binary file contents, and `created_at`
+- Allowed formats: PDF, DOC, DOCX, RTF, ODT, TXT; maximum file size 10 MiB
+
 ## API endpoints
 
 | Method | Path                                   | Description                     |
@@ -74,6 +82,10 @@ Versioned resumes tailored per application:
 | POST   | /api/applications/{id}/tailored-resumes/generate-local | Generate tailored resume via local LLM |
 | GET    | /api/applications/{id}/cover-letter/prompt | Generate cover letter prompt    |
 | POST   | /api/applications/{id}/cover-letter/generate-local | Generate cover letter via local LLM |
+| POST   | /api/applications/{id}/documents | Upload an existing resume or cover letter (multipart `file` + `document_type`) |
+| GET    | /api/application-documents/ | List all document metadata (filename, company/role, type, upload date) |
+| GET    | /api/applications/{id}/documents | List attached document metadata |
+| GET    | /api/applications/{id}/documents/{document_id}/download | Download original attached document |
 | GET    | /api/applications/{id}/outreach/prompt | Generate outreach email prompt (optional `?template_type=`) |
 | POST   | /api/applications/{id}/outreach/generate-local | Generate outreach email via local LLM |
 | GET    | /api/resume                            | Get base master resume          |

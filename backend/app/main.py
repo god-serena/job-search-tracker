@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import models
 from .database import engine
-from .routers import applications, documents, resume, stats, tailoring
+from .routers import application_documents, applications, documents, resume, stats, tailoring
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 app.include_router(applications.router)
+app.include_router(application_documents.router)
 app.include_router(resume.router)
 app.include_router(tailoring.router)
 app.include_router(documents.router)

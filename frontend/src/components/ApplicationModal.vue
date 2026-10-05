@@ -1,10 +1,15 @@
 <script setup>
-import { reactive, watch } from "vue";
+import { reactive, ref, watch } from "vue";
+import { api } from "../api";
 
 const props = defineProps({
   application: { type: Object, default: null },
 });
 const emit = defineEmits(["close", "save", "delete"]);
+const attachments = ref([]);
+const attachmentError = ref("");
+const uploading = ref(false);
+const supportedFileTypes = ".pdf,.doc,.docx,.rtf,.odt,.txt";
 
 const form = reactive({
   company: "",
@@ -35,6 +40,41 @@ watch(
   },
   { immediate: true }
 );
+
+watch(
+  () => props.application?.id,
+  async (applicationId) => {
+    attachments.value = [];
+    attachmentError.value = "";
+    if (!applicationId) return;
+    try {
+      attachments.value = await api.listApplicationDocuments(applicationId);
+    } catch (error) {
+      attachmentError.value = error.message;
+    }
+  },
+  { immediate: true }
+);
+
+async function uploadDocument(event, documentType) {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file || !props.application?.id) return;
+  attachmentError.value = "";
+  if (file.size > 10 * 1024 * 1024) {
+    attachmentError.value = "File exceeds the 10 MB limit.";
+    return;
+  }
+  uploading.value = true;
+  try {
+    const item = await api.uploadApplicationDocument(props.application.id, documentType, file);
+    attachments.value = [item, ...attachments.value];
+  } catch (error) {
+    attachmentError.value = error.message;
+  } finally {
+    uploading.value = false;
+  }
+}
 
 function submit() {
   const payload = { ...form };
@@ -150,6 +190,28 @@ function submit() {
             class="border border-slate-300 rounded-md px-3 py-2 text-sm sm:text-base w-full text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/40"
           ></textarea>
         </label>
+
+        <section class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3" aria-labelledby="attachments-title">
+          <div>
+            <h3 id="attachments-title" class="text-sm font-semibold text-slate-800">Existing documents</h3>
+            <p class="text-xs text-slate-500">Attach PDF, Word, RTF, ODT, or TXT files (up to 10 MB). Create the application before uploading.</p>
+          </div>
+          <div v-if="application" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label v-for="kind in [{ value: 'resume', label: 'Resume' }, { value: 'cover_letter', label: 'Cover letter' }]" :key="kind.value" class="text-xs font-medium text-slate-700 flex flex-col gap-1">
+              Upload {{ kind.label }}
+              <input type="file" :accept="supportedFileTypes" :disabled="uploading" class="text-xs" @change="uploadDocument($event, kind.value)" />
+            </label>
+          </div>
+          <p v-else class="text-xs text-amber-800">Save this application first to attach documents.</p>
+          <p v-if="uploading" role="status" class="text-xs text-slate-500">Uploading…</p>
+          <p v-if="attachmentError" role="alert" class="text-xs text-red-700">{{ attachmentError }}</p>
+          <ul v-if="attachments.length" class="space-y-1">
+            <li v-for="document in attachments" :key="document.id" class="text-xs flex items-center justify-between gap-2">
+              <span class="truncate text-slate-700">{{ document.document_type === 'resume' ? 'Resume' : 'Cover letter' }}: {{ document.filename }}</span>
+              <a class="text-amber-700 hover:underline shrink-0" :href="api.applicationDocumentDownloadUrl(application.id, document.id)" :download="document.filename">Download</a>
+            </li>
+          </ul>
+        </section>
 
         <label for="notes" class="text-sm font-medium text-slate-700 flex flex-col gap-1">
           Notes

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 
-from sqlalchemy import Column, String, Date, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, Date, DateTime, Text, ForeignKey, LargeBinary
 from sqlalchemy.dialects.postgresql import UUID
 
 from .database import Base
@@ -40,4 +40,16 @@ class TailoredResume(Base):
     content = Column(Text, nullable=False)
     source = Column(String(64), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ApplicationDocument(Base):
+    __tablename__ = "application_documents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    application_id = Column(UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True)
+    document_type = Column(String(32), nullable=False)
+    filename = Column(String(255), nullable=False)
+    media_type = Column(String(127), nullable=False)
+    content = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
