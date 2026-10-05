@@ -18,7 +18,7 @@ const columns = [
 
 const colStyle = {
   wishlist:     { border: 'border-sky-300',     label: 'text-sky-700' },
-  applied:      { border: 'border-indigo-300',  label: 'text-indigo-700' },
+  applied:      { border: 'border-amber-300',   label: 'text-amber-700' },
   interviewing: { border: 'border-violet-300',  label: 'text-violet-700' },
   offer:        { border: 'border-emerald-300', label: 'text-emerald-700' },
   rejected:     { border: 'border-rose-300',    label: 'text-rose-700' },
@@ -222,27 +222,31 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <div class="px-6 pt-4 pb-2 shrink-0 flex flex-col gap-3">
+    <div class="px-4 sm:px-6 pt-4 pb-2 shrink-0 max-h-[55%] overflow-y-auto flex flex-col gap-3">
+      <!-- Board heading -->
+      <h2 class="text-lg font-semibold text-slate-800">Job Board</h2>
+
       <!-- Analytics Stats Bar -->
       <StatsBar
         :stats="stats"
         @select-filter="(filter) => selectedFilter = filter"
+        class="order-last sm:order-none shrink-0"
       />
 
       <!-- Column Counts & Add Action -->
-      <div class="flex items-center justify-between">
-        <div class="flex gap-2 flex-wrap">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap gap-2">
           <span
             v-for="c in columns"
             :key="c.key"
-            class="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-medium text-slate-600 shadow-sm"
+            class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-full px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm"
           >
             {{ c.label }}
             <strong class="text-slate-800 font-bold">{{ counts[c.key] }}</strong>
           </span>
         </div>
         <button
-          class="bg-indigo-600 text-white text-sm sm:text-base px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors font-medium"
+          class="w-full sm:w-auto bg-amber-600 text-white text-sm sm:text-base px-4 py-2 rounded-md hover:bg-amber-700 transition-colors font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
           @click="openCreateModal"
         >
           ＋ New Application
@@ -253,7 +257,7 @@ onMounted(() => {
       <div class="bg-slate-50/80 border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex flex-1 items-center gap-3 flex-wrap">
           <!-- Search input -->
-          <div class="relative flex-1 min-w-[200px] max-w-xs">
+          <div class="relative flex-1 min-w-[200px] max-w-none sm:max-w-xs">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -262,13 +266,15 @@ onMounted(() => {
             <input
               v-model="searchQuery"
               type="text"
+              aria-label="Search applications"
               placeholder="Search company, role, notes..."
-              class="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white transition-colors"
+              class="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 focus-visible:ring-2 focus-visible:ring-amber-500 focus:bg-white transition-colors"
             />
             <button
               v-if="searchQuery"
               @click="searchQuery = ''"
-              class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 text-xs"
+              aria-label="Clear search"
+              class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 text-xs rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               title="Clear search"
             >
               ✕
@@ -276,14 +282,15 @@ onMounted(() => {
           </div>
 
           <!-- Filter pills -->
-          <div class="flex items-center gap-1.5">
+          <div class="flex flex-wrap items-center gap-1.5">
             <button
               v-for="opt in filterOptions"
               :key="opt.key"
+              :aria-pressed="selectedFilter === opt.key"
               @click="selectedFilter = opt.key"
-              class="px-3 py-1.5 text-sm font-medium rounded-full transition-colors border"
-              :class="selectedFilter === opt.key 
-                ? 'bg-indigo-600 text-white border-indigo-600' 
+              class="px-3 py-1.5 text-sm font-medium rounded-full transition-colors border focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              :class="selectedFilter === opt.key
+                ? 'bg-amber-600 text-white border-amber-600'
                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
             >
               {{ opt.label }}
@@ -292,7 +299,7 @@ onMounted(() => {
         </div>
 
         <!-- Sort dropdown & Active filter status -->
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-2">
             <label for="sort-select" class="text-sm font-medium text-slate-500 whitespace-nowrap flex items-center gap-1">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,7 +310,7 @@ onMounted(() => {
             <select
               id="sort-select"
               v-model="sortBy"
-              class="text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white transition-colors"
+              class="text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus-visible:ring-2 focus-visible:ring-amber-500 focus:bg-white transition-colors"
             >
               <option v-for="sort in sortOptions" :key="sort.value" :value="sort.value">
                 {{ sort.label }}
@@ -320,15 +327,15 @@ onMounted(() => {
         </span>
         <button
           @click="resetFilters"
-          class="text-indigo-600 hover:text-indigo-800 font-medium text-sm"
+          class="text-amber-700 hover:text-amber-900 font-medium text-sm rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
         >
           Clear filters
         </button>
       </div>
     </div>
 
-    <p v-if="error" class="text-red-500 text-sm px-6">{{ error }}</p>
-    <p v-if="loading" class="text-slate-400 text-sm px-6">Loading…</p>
+    <p v-if="error" role="alert" class="text-red-600 text-sm px-4 sm:px-6 shrink-0">{{ error }}</p>
+    <p v-if="loading" role="status" class="text-slate-500 text-sm px-4 sm:px-6 shrink-0">Loading…</p>
 
     <KanbanColumns
       v-if="!loading && !error"

@@ -10,9 +10,9 @@ const emit = defineEmits(["select-filter"]);
 </script>
 
 <template>
-  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+  <div class="flex overflow-x-auto gap-3 snap-x sm:grid sm:overflow-visible sm:grid-cols-3 lg:grid-cols-5">
     <!-- Total Applications -->
-    <div class="bg-white border border-slate-200 border-l-4 border-l-slate-400 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+    <div class="min-w-[170px] shrink-0 snap-start bg-white border border-slate-200 border-l-4 border-l-slate-400 rounded-lg p-3 shadow-sm flex flex-col justify-between">
       <div class="flex items-start justify-between">
         <span class="text-sm font-medium text-slate-500">Total Applications</span>
         <svg class="w-5 h-5 text-slate-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,68 +20,70 @@ const emit = defineEmits(["select-filter"]);
         </svg>
       </div>
       <div class="mt-1 flex items-baseline">
-        <span class="text-3xl font-extrabold text-slate-800">
+        <span class="text-2xl font-bold text-slate-800">
           {{ stats !== null ? stats.total_applications : '-' }}
         </span>
       </div>
     </div>
 
     <!-- Active Pipeline -->
-    <div class="bg-white border border-slate-200 border-l-4 border-l-indigo-400 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+    <div class="min-w-[170px] shrink-0 snap-start bg-white border border-slate-200 border-l-4 border-l-slate-400 rounded-lg p-3 shadow-sm flex flex-col justify-between">
       <div class="flex items-start justify-between">
         <div>
           <span class="text-sm font-medium text-slate-500">Active Pipeline</span>
           <p class="text-xs text-slate-400">Applied &amp; Interviewing</p>
         </div>
-        <svg class="w-5 h-5 text-indigo-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-slate-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       </div>
       <div class="mt-1 flex items-baseline">
-        <span class="text-3xl font-extrabold text-slate-800">
+        <span class="text-2xl font-bold text-slate-800">
           {{ stats !== null ? stats.active_pipeline : '-' }}
         </span>
       </div>
     </div>
 
     <!-- Interview Rate -->
-    <div class="bg-white border border-slate-200 border-l-4 border-l-violet-400 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+    <div class="min-w-[170px] shrink-0 snap-start bg-white border border-slate-200 border-l-4 border-l-slate-400 rounded-lg p-3 shadow-sm flex flex-col justify-between">
       <div class="flex items-start justify-between">
         <span class="text-sm font-medium text-slate-500">Interview Rate</span>
-        <svg class="w-5 h-5 text-violet-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-slate-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
         </svg>
       </div>
       <div class="mt-1 flex items-baseline">
-        <span class="text-3xl font-extrabold text-slate-800">
+        <span class="text-2xl font-bold text-slate-800">
           {{ stats !== null ? `${stats.interview_rate}%` : '-' }}
         </span>
       </div>
     </div>
 
     <!-- Offers -->
-    <div class="bg-white border border-slate-200 border-l-4 border-l-emerald-400 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+    <div class="min-w-[170px] shrink-0 snap-start bg-white border border-slate-200 border-l-4 border-l-slate-400 rounded-lg p-3 shadow-sm flex flex-col justify-between">
       <div class="flex items-start justify-between">
         <span class="text-sm font-medium text-slate-500">Offers</span>
-        <svg class="w-5 h-5 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-slate-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
         </svg>
       </div>
       <div class="mt-1 flex items-baseline">
-        <span class="text-3xl font-extrabold text-emerald-600">
+        <span class="text-2xl font-bold text-slate-800">
           {{ stats !== null ? (stats.by_status?.offer || 0) : '-' }}
         </span>
       </div>
     </div>
 
     <!-- Follow-ups Due -->
-    <div
-      class="border rounded-lg p-3 shadow-sm flex flex-col justify-between transition-all cursor-pointer group border-l-4"
+    <button
+      type="button"
+      class="border rounded-lg p-3 shadow-sm flex flex-col justify-between transition-all cursor-pointer group border-l-4 text-left
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
       :class="stats && stats.follow_ups_due > 0
         ? 'bg-amber-50/50 border-amber-200 border-l-amber-400 hover:border-amber-400 hover:bg-amber-50'
         : 'bg-white border-slate-200 border-l-slate-300 hover:border-slate-300'"
+      :aria-label="`View applications needing follow-up: ${stats ? stats.follow_ups_due : 0} due`"
       @click="emit('select-filter', 'needs_followup')"
-      title="Filter by applications needing follow-up"
     >
       <div class="flex items-start justify-between">
         <span class="text-sm font-medium text-slate-500 group-hover:text-amber-700">Follow-ups Due</span>
@@ -99,7 +101,7 @@ const emit = defineEmits(["select-filter"]);
       </div>
       <div class="mt-1 flex items-baseline justify-between">
         <span
-          class="text-3xl font-extrabold"
+          class="text-2xl font-bold"
           :class="stats && stats.follow_ups_due > 0 ? 'text-amber-700' : 'text-slate-800'"
         >
           {{ stats !== null ? stats.follow_ups_due : '-' }}
@@ -111,6 +113,6 @@ const emit = defineEmits(["select-filter"]);
           </svg>
         </span>
       </div>
-    </div>
+    </button>
   </div>
 </template>

@@ -12,7 +12,7 @@ const emit = defineEmits(["close"]);
 const selectedTemplate = ref("ats"); // "ats" | "modern" | "executive"
 const pageMode = ref("fit"); // "fit" | "multi"
 const selectedDensity = ref("compact"); // "compact" | "normal"
-const zoom = ref(0.8); // 80% default for Fit Screen
+
 
 function handleKeyDown(event) {
   if (event.key === "Escape") {
@@ -27,6 +27,13 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
 });
+
+// Simple Fit Screen zoom function
+function fitZoom() {
+  return Math.max(0.4, Math.min(0.8, Math.floor(((window.innerWidth - 32) / 794) * 10) / 10));
+}
+
+const zoom = ref(fitZoom());
 
 // Helper for formatting inline markdown: bold, italic, links
 function formatInline(text) {
@@ -430,15 +437,19 @@ function handlePrint() {
   <Teleport to="body">
     <div
       id="resume-print-root"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Resume preview and print"
       class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center overflow-y-auto p-4 sm:p-6 preview-modal-backdrop"
       @click.self="emit('close')"
     >
       <!-- Control Toolbar (Sticky Top, no-print) -->
       <header
-        class="no-print sticky top-0 z-30 w-full max-w-5xl bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 sm:p-4 mb-6 flex flex-col gap-3 border border-slate-700/80 transition-all"
+        aria-label="Preview controls"
+        class="no-print sticky top-0 z-30 w-full max-w-5xl bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 sm:p-4 mb-6 [&_button]:focus-visible:outline-none [&_button]:focus-visible:ring-2 [&_button]:focus-visible:ring-amber-400 border border-slate-700/80 transition-all"
       >
         <!-- Tier 1: Document Title, Status Badge & Primary Actions -->
-        <div class="flex items-center justify-between gap-4 pb-2.5 border-b border-slate-800/80">
+        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 pb-2.5 border-b border-slate-800/80">
           <!-- Left: Title & Page Badge -->
           <div class="flex items-center gap-3 min-w-0">
             <div class="flex items-center gap-2 truncate">
@@ -505,11 +516,12 @@ function handlePrint() {
           <!-- Left: Template, Mode, Density Clusters -->
           <div class="flex items-center gap-3 flex-wrap">
             <!-- Cluster 1: Template Switcher -->
-            <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs">
+            <div class="flex flex-wrap items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs">
               <button
                 type="button"
                 class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
                 :class="selectedTemplate === 'ats' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                :aria-pressed="selectedTemplate === 'ats'"
                 @click="selectedTemplate = 'ats'"
               >
                 ATS Standard
@@ -518,6 +530,7 @@ function handlePrint() {
                 type="button"
                 class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
                 :class="selectedTemplate === 'modern' ? 'bg-amber-500 text-slate-950 font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                :aria-pressed="selectedTemplate === 'modern'"
                 @click="selectedTemplate = 'modern'"
               >
                 Modern Minimalist
@@ -525,7 +538,8 @@ function handlePrint() {
               <button
                 type="button"
                 class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
-                :class="selectedTemplate === 'executive' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                :class="selectedTemplate === 'executive' ? 'bg-slate-700 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                :aria-pressed="selectedTemplate === 'executive'"
                 @click="selectedTemplate = 'executive'"
               >
                 Executive
@@ -535,13 +549,14 @@ function handlePrint() {
             <div class="hidden sm:block h-5 w-px bg-slate-700/80"></div>
 
             <!-- Cluster 2: Layout (Page Mode & Density) -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap gap-1">
               <!-- Page Mode -->
               <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs">
                 <button
                   type="button"
                   class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                  :class="pageMode === 'fit' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  :class="pageMode === 'fit' ? 'bg-slate-700 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  :aria-pressed="pageMode === 'fit'"
                   @click="pageMode = 'fit'"
                 >
                   <span>📄 Fit 1 Page</span>
@@ -549,7 +564,8 @@ function handlePrint() {
                 <button
                   type="button"
                   class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                  :class="pageMode === 'multi' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  :class="pageMode === 'multi' ? 'bg-slate-700 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  :aria-pressed="pageMode === 'multi'"
                   @click="pageMode = 'multi'"
                 >
                   <span>📑 Multi-Page</span>
@@ -561,7 +577,8 @@ function handlePrint() {
                 <button
                   type="button"
                   class="px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
-                  :class="selectedDensity === 'compact' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  :class="selectedDensity === 'compact' ? 'bg-slate-700 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  :aria-pressed="selectedDensity === 'compact'"
                   @click="selectedDensity = 'compact'"
                 >
                   Compact
@@ -569,7 +586,8 @@ function handlePrint() {
                 <button
                   type="button"
                   class="px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all cursor-pointer"
-                  :class="selectedDensity === 'normal' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  :class="selectedDensity === 'normal' ? 'bg-slate-700 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'"
+                  :aria-pressed="selectedDensity === 'normal'"
                   @click="selectedDensity = 'normal'"
                 >
                   Normal
@@ -582,16 +600,17 @@ function handlePrint() {
           <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs ml-auto">
             <button
               type="button"
-              class="px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors cursor-pointer"
-              :class="Math.round(zoom * 100) === 80 ? 'bg-slate-700 text-white font-semibold' : 'text-slate-300 hover:text-white'"
-              title="Fit Screen (~80%)"
-              @click="zoom = 0.8"
+              class="px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              :class="Math.abs(zoom - fitZoom()) < 0.01 ? 'bg-slate-700 text-white font-semibold' : 'text-slate-300 hover:text-white'"
+              :aria-pressed="Math.abs(zoom - fitZoom()) < 0.01"
+              title="Fit Screen"
+              @click="zoom = fitZoom()"
             >
               Fit Screen
             </button>
             <button
               type="button"
-              class="p-1.5 text-slate-300 hover:text-white rounded-lg transition-colors disabled:opacity-30 cursor-pointer"
+              class="p-1.5 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-30"
               :disabled="zoom <= 0.4"
               title="Zoom Out (10%)"
               @click="zoom = Math.max(0.4, Math.round((zoom - 0.1) * 10) / 10)"
@@ -602,7 +621,7 @@ function handlePrint() {
             </button>
             <button
               type="button"
-              class="px-2 py-1.5 text-xs sm:text-sm font-mono font-medium rounded-lg transition-colors cursor-pointer"
+              class="px-2 py-1.5 text-xs sm:text-sm font-mono font-medium rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               :class="Math.round(zoom * 100) === 100 ? 'bg-slate-700 text-white font-semibold' : 'text-slate-300 hover:text-white'"
               title="Reset to 100%"
               @click="zoom = 1.0"
@@ -611,7 +630,7 @@ function handlePrint() {
             </button>
             <button
               type="button"
-              class="p-1.5 text-slate-300 hover:text-white rounded-lg transition-colors disabled:opacity-30 cursor-pointer"
+              class="p-1.5 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-30"
               :disabled="zoom >= 1.6"
               title="Zoom In (10%)"
               @click="zoom = Math.min(1.6, Math.round((zoom + 0.1) * 10) / 10)"

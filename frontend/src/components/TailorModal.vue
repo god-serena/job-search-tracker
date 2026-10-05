@@ -421,13 +421,16 @@ onUnmounted(() => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white rounded-xl shadow-xl w-full max-w-3xl my-6 sm:my-8 p-6 flex flex-col gap-5"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tailor-modal-title"
+      class="bg-white rounded-xl shadow-xl w-full max-w-3xl my-6 sm:my-8 p-4 sm:p-6 flex flex-col gap-5"
     >
       <!-- Header -->
       <div class="flex items-start justify-between border-b border-slate-100 pb-3">
         <div>
           <div class="flex items-center gap-2">
-            <h2 class="text-xl font-bold text-slate-800">
+            <h2 id="tailor-modal-title" class="text-xl font-bold text-slate-800">
               AI Application Copilot
             </h2>
             <span class="text-sm bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">
@@ -440,7 +443,7 @@ onUnmounted(() => {
         </div>
         <button
           type="button"
-          class="text-slate-400 hover:text-slate-600 text-lg leading-none p-1 rounded hover:bg-slate-100 transition-colors"
+          class="text-slate-400 hover:text-slate-600 text-lg leading-none p-1 rounded-md hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           @click="emit('close')"
           aria-label="Close"
         >
@@ -449,10 +452,16 @@ onUnmounted(() => {
       </div>
 
       <!-- Tab Navigation -->
-      <div class="flex border-b border-slate-200 gap-1 -mt-2">
+      <div
+        role="tablist"
+        aria-label="Document type"
+        class="flex border-b border-slate-200 gap-1 -mt-2 overflow-x-auto"
+      >
         <button
           type="button"
-          class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5"
+          role="tab"
+          :aria-selected="activeTab === 'resume'"
+          class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           :class="
             activeTab === 'resume'
               ? 'border-amber-600 text-amber-900 font-semibold'
@@ -467,7 +476,9 @@ onUnmounted(() => {
         </button>
         <button
           type="button"
-          class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5"
+          role="tab"
+          :aria-selected="activeTab === 'cover-letter'"
+          class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           :class="
             activeTab === 'cover-letter'
               ? 'border-amber-600 text-amber-900 font-semibold'
@@ -482,7 +493,9 @@ onUnmounted(() => {
         </button>
         <button
           type="button"
-          class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5"
+          role="tab"
+          :aria-selected="activeTab === 'outreach'"
+          class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           :class="
             activeTab === 'outreach'
               ? 'border-amber-600 text-amber-900 font-semibold'
@@ -501,7 +514,7 @@ onUnmounted(() => {
       <div v-show="activeTab === 'resume'" class="flex flex-col gap-6">
         <!-- Section 1: Generated Prompt -->
         <section class="flex flex-col gap-2">
-          <div class="flex items-center justify-between">
+          <div class="flex items-start justify-between flex-wrap gap-2">
             <div>
               <h3 class="text-base font-bold text-slate-800">
                 Tailoring Prompt
@@ -513,7 +526,7 @@ onUnmounted(() => {
             <button
               v-if="!promptError && !loadingPrompt"
               type="button"
-              class="px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-1.5 transition-colors shadow-sm"
+              class="px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-1.5 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
               :class="copiedPrompt ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white hover:bg-slate-700'"
               @click="copyPrompt"
             >
@@ -528,13 +541,14 @@ onUnmounted(() => {
           </div>
 
           <!-- Prompt Loading -->
-          <div v-if="loadingPrompt" class="py-8 text-center text-sm text-slate-400 bg-slate-50 rounded-lg border border-slate-200">
+          <div v-if="loadingPrompt" role="status" class="py-8 text-center text-sm text-slate-400 bg-slate-50 rounded-lg border border-slate-200">
             Generating tailoring prompt...
           </div>
 
           <!-- Prompt Error Alert Box -->
           <div
             v-else-if="promptError"
+            role="alert"
             class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm flex flex-col gap-2"
           >
             <div class="flex items-start gap-2.5">
@@ -555,7 +569,7 @@ onUnmounted(() => {
               </div>
               <button
                 type="button"
-                class="px-2.5 py-1 text-sm font-medium bg-amber-100 hover:bg-amber-200 text-amber-900 rounded shrink-0 border border-amber-300 transition-colors"
+                class="px-2.5 py-1 text-sm font-medium bg-amber-100 hover:bg-amber-200 text-amber-900 rounded shrink-0 border border-amber-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
                 @click="loadPrompt"
               >
                 View Prompt
@@ -569,7 +583,8 @@ onUnmounted(() => {
               readonly
               :value="prompt"
               rows="6"
-              class="w-full bg-slate-50 border border-slate-300 rounded-md p-3 text-sm font-mono text-slate-800 focus:outline-none resize-y selection:bg-amber-200"
+              aria-label="Tailoring prompt (read-only)"
+              class="w-full bg-slate-50 border border-slate-300 rounded-md p-3 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 resize-y selection:bg-amber-200"
             ></textarea>
           </div>
         </section>
@@ -580,7 +595,7 @@ onUnmounted(() => {
             <div>
               <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
                 <span>Generate with Local LLM</span>
-                <span class="text-xs font-normal bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded">
+                <span class="text-xs font-normal bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded">
                   Direct Integration
                 </span>
               </h3>
@@ -593,6 +608,7 @@ onUnmounted(() => {
           <!-- Local Generation Error Alert Banner -->
           <div
             v-if="localError"
+            role="alert"
             class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2.5"
           >
             <svg class="w-4 h-4 text-red-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -606,7 +622,7 @@ onUnmounted(() => {
             </div>
             <button
               type="button"
-              class="text-red-500 hover:text-red-700 text-sm font-bold leading-none px-1"
+              class="text-red-500 hover:text-red-700 text-sm font-bold leading-none px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
               @click="localError = null"
               aria-label="Dismiss error"
             >
@@ -617,6 +633,7 @@ onUnmounted(() => {
           <!-- Local Generation Success Alert Banner -->
           <div
             v-if="localSuccess"
+            role="status"
             class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800 flex items-center justify-between gap-2 flex-wrap"
           >
             <div class="flex items-center gap-2">
@@ -628,7 +645,7 @@ onUnmounted(() => {
             <button
               v-if="latestGeneratedResume"
               type="button"
-              class="px-2.5 py-1 text-sm font-medium rounded bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1 transition-colors cursor-pointer"
+              class="px-2.5 py-1 text-sm font-medium rounded bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
               @click="openPreview(latestGeneratedResume)"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -648,14 +665,14 @@ onUnmounted(() => {
                 v-model="localModel"
                 type="text"
                 placeholder="Swift-1.5-Qwen3.8-27B-GSQ-RCO"
-                class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-400 placeholder:text-slate-400"
+                class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/40 placeholder:text-slate-400"
                 :disabled="generatingLocal"
               />
             </div>
 
             <button
               type="button"
-              class="px-4 py-1.5 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0"
+              class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
               :disabled="generatingLocal || Boolean(promptError)"
               @click="generateLocalResume"
             >
@@ -700,9 +717,10 @@ onUnmounted(() => {
           <!-- Generating in-progress info box -->
           <div
             v-if="generatingLocal"
-            class="p-3 bg-indigo-50 border border-indigo-100 rounded-lg text-sm text-indigo-700 flex items-center gap-2.5 animate-pulse"
+            role="status"
+            class="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 flex items-center gap-2.5 animate-pulse"
           >
-            <svg class="w-4 h-4 animate-spin text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 animate-spin text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -715,7 +733,7 @@ onUnmounted(() => {
 
         <!-- Section 3: Paste-back Section -->
         <section class="flex flex-col gap-3 pt-3 border-t border-slate-100">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 class="text-base font-bold text-slate-800">
                 Save Tailored Result Manually
@@ -731,32 +749,33 @@ onUnmounted(() => {
               <select
                 id="ai-source"
                 v-model="selectedSource"
-                class="border border-slate-300 rounded-md px-2.5 py-1 text-sm bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                class="border border-slate-300 rounded-md px-2.5 py-1 text-sm bg-white text-slate-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/40"
               >
                 <option v-for="s in sources" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
           </div>
 
-          <div v-if="saveError" class="bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2 rounded-md">
+          <div v-if="saveError" role="alert" class="bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2 rounded-md">
             {{ saveError }}
           </div>
 
-          <div v-if="saveSuccess" class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-3 py-2 rounded-md">
+          <div v-if="saveSuccess" role="status" class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-3 py-2 rounded-md">
             {{ saveSuccess }}
           </div>
 
           <textarea
             v-model="pastedResume"
             rows="5"
+            aria-label="Tailored resume content (Markdown or plain text)"
             placeholder="Paste the generated tailored resume here (Markdown or plain text)..."
-            class="w-full border border-slate-300 rounded-md p-3 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 resize-y"
+            class="w-full border border-slate-300 rounded-md p-3 text-sm font-mono text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/40 resize-y"
           ></textarea>
 
           <div class="flex items-center justify-end gap-2">
             <button
               type="button"
-              class="px-4 py-1.5 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors shadow-sm"
+              class="px-4 py-1.5 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
               :disabled="!pastedResume.trim() || savingVersion"
               @click="saveVersion"
             >
@@ -785,23 +804,24 @@ onUnmounted(() => {
             </div>
             <button
               type="button"
-              class="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
+              class="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               @click="loadVersions"
             >
               Refresh History
             </button>
           </div>
 
-          <div v-if="versionsError" class="text-sm text-red-600 bg-red-50 p-2.5 rounded border border-red-200">
+          <div v-if="versionsError" role="alert" class="text-sm text-red-600 bg-red-50 p-2.5 rounded border border-red-200">
             {{ versionsError }}
           </div>
 
-          <div v-if="loadingVersions" class="py-6 text-center text-sm text-slate-400">
+          <div v-if="loadingVersions" role="status" class="py-6 text-center text-sm text-slate-400">
             Loading history...
           </div>
 
           <div
             v-else-if="!sortedVersions.length"
+            role="status"
             class="py-6 text-center text-sm text-slate-400 italic bg-slate-50 rounded-lg border border-slate-100"
           >
             No tailored resume versions saved yet. Generate one with local LLM or paste one above to get started.
@@ -830,8 +850,9 @@ onUnmounted(() => {
                 <div class="flex items-center gap-1.5">
                   <button
                     type="button"
-                    class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 transition-colors"
+                    class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
                     title="Preview formatted template or print to PDF"
+                    aria-label="Preview and print this tailored resume version"
                     @click="openPreview(v.content)"
                   >
                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -842,7 +863,8 @@ onUnmounted(() => {
 
                   <button
                     type="button"
-                    class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 transition-colors"
+                    class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+                    aria-label="Copy this tailored resume version"
                     @click="copyVersion(v)"
                   >
                     <svg v-if="copiedVersionId === v.id" class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -856,7 +878,8 @@ onUnmounted(() => {
 
                   <button
                     type="button"
-                    class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 transition-colors"
+                    class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+                    aria-label="Expand or collapse this tailored resume version"
                     @click="toggleExpand(v.id)"
                   >
                     <span>{{ expandedVersionIds.has(v.id) ? 'Collapse' : 'Expand' }}</span>
@@ -903,6 +926,7 @@ onUnmounted(() => {
         <!-- Error Banner -->
         <div
           v-if="coverLetterError"
+          role="alert"
           class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2.5"
         >
           <svg class="w-4 h-4 text-red-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -916,7 +940,8 @@ onUnmounted(() => {
           </div>
           <button
             type="button"
-            class="text-red-500 hover:text-red-700 text-sm font-bold leading-none px-1"
+            class="text-red-500 hover:text-red-700 text-sm font-bold leading-none px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+            aria-label="Dismiss cover letter error"
             @click="coverLetterError = null"
           >
             ✕
@@ -926,6 +951,7 @@ onUnmounted(() => {
         <!-- Success Banner -->
         <div
           v-if="coverLetterSuccess"
+          role="status"
           class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800 flex items-center gap-2"
         >
           <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -945,14 +971,14 @@ onUnmounted(() => {
               v-model="coverLetterModel"
               type="text"
               placeholder="Swift-1.5-Qwen3.8-27B-GSQ-RCO"
-              class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+              class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/40"
               :disabled="generatingCoverLetter"
             />
           </div>
 
           <button
             type="button"
-            class="px-4 py-1.5 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0"
+            class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
             :disabled="generatingCoverLetter"
             @click="generateCoverLetter"
           >
@@ -981,7 +1007,7 @@ onUnmounted(() => {
         <!-- Generated Cover Letter Output -->
         <div class="flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <label class="text-sm font-semibold text-slate-700">
+            <label for="generated-cover-letter" class="text-sm font-semibold text-slate-700">
               Generated Cover Letter:
             </label>
             <button
@@ -1002,19 +1028,21 @@ onUnmounted(() => {
           </div>
 
           <textarea
+            id="generated-cover-letter"
             v-model="generatedCoverLetter"
             rows="10"
+            aria-label="Generated cover letter (editable)"
             placeholder="Generated cover letter will appear here. You can also edit it directly..."
-            class="w-full border border-slate-300 rounded-md p-3 text-sm font-sans text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-y leading-relaxed"
+            class="w-full border border-slate-300 rounded-md p-3 text-sm font-sans text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 resize-y leading-relaxed"
           ></textarea>
         </div>
 
         <!-- Prompt Expansion Toggle & View -->
         <div class="border-t border-slate-100 pt-3 flex flex-col gap-2">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between flex-wrap gap-2">
             <button
               type="button"
-              class="text-sm font-medium text-slate-600 hover:text-slate-800 flex items-center gap-1.5 transition-colors"
+              class="text-sm font-medium text-slate-600 hover:text-slate-800 flex items-center gap-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               @click="showCoverLetterPrompt = !showCoverLetterPrompt"
             >
               <svg
@@ -1032,7 +1060,7 @@ onUnmounted(() => {
             <button
               v-if="showCoverLetterPrompt && coverLetterPrompt && !coverLetterPromptError"
               type="button"
-              class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1 transition-colors"
+              class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
               @click="copyCoverLetterPrompt"
             >
               <svg v-if="copiedCoverLetterPrompt" class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1046,10 +1074,10 @@ onUnmounted(() => {
           </div>
 
           <div v-if="showCoverLetterPrompt" class="mt-1">
-            <div v-if="loadingCoverLetterPrompt" class="py-4 text-center text-sm text-slate-400 bg-slate-50 rounded">
+            <div v-if="loadingCoverLetterPrompt" role="status" class="py-4 text-center text-sm text-slate-400 bg-slate-50 rounded">
               Loading prompt...
             </div>
-            <div v-else-if="coverLetterPromptError" class="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+            <div v-else-if="coverLetterPromptError" role="alert" class="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
               {{ coverLetterPromptError }}
             </div>
             <textarea
@@ -1057,7 +1085,8 @@ onUnmounted(() => {
               readonly
               :value="coverLetterPrompt"
               rows="5"
-              class="w-full bg-slate-50 border border-slate-200 rounded-md p-2.5 text-sm font-mono text-slate-700 focus:outline-none resize-y"
+              aria-label="Cover letter prompt for external AI (read-only)"
+              class="w-full bg-slate-50 border border-slate-200 rounded-md p-2.5 text-sm font-mono text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 resize-y"
             ></textarea>
           </div>
         </div>
@@ -1076,8 +1105,8 @@ onUnmounted(() => {
 
         <!-- Template Selector -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-semibold text-slate-700">Email Type:</label>
-          <div class="flex items-center gap-2 flex-wrap">
+          <label id="outreach-email-type" class="text-sm font-semibold text-slate-700">Email Type:</label>
+          <div role="group" aria-labelledby="outreach-email-type" class="flex items-center gap-2 flex-wrap">
             <button
               v-for="t in outreachTemplates"
               :key="t.value"
@@ -1098,6 +1127,7 @@ onUnmounted(() => {
         <!-- Error Banner -->
         <div
           v-if="outreachError"
+          role="alert"
           class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2.5"
         >
           <svg class="w-4 h-4 text-red-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1111,7 +1141,7 @@ onUnmounted(() => {
           </div>
           <button
             type="button"
-            class="text-red-500 hover:text-red-700 text-sm font-bold leading-none px-1"
+            class="text-red-500 hover:text-red-700 text-sm font-bold leading-none px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
             @click="outreachError = null"
           >
             ✕
@@ -1121,6 +1151,7 @@ onUnmounted(() => {
         <!-- Success Banner -->
         <div
           v-if="outreachSuccess"
+          role="status"
           class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800 flex items-center gap-2"
         >
           <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1140,14 +1171,14 @@ onUnmounted(() => {
               v-model="outreachModel"
               type="text"
               placeholder="Swift-1.5-Qwen3.8-27B-GSQ-RCO"
-              class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+              class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/40 placeholder:text-slate-400"
               :disabled="generatingOutreach"
             />
           </div>
 
           <button
             type="button"
-            class="px-4 py-1.5 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0"
+            class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
             :disabled="generatingOutreach"
             @click="generateOutreach"
           >
@@ -1176,7 +1207,7 @@ onUnmounted(() => {
         <!-- Generated Outreach Output -->
         <div class="flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <label class="text-sm font-semibold text-slate-700">
+            <label for="generated-outreach" class="text-sm font-semibold text-slate-700">
               Generated Message:
             </label>
             <button
@@ -1197,6 +1228,7 @@ onUnmounted(() => {
           </div>
 
           <textarea
+            id="generated-outreach"
             v-model="generatedOutreach"
             rows="8"
             placeholder="Generated email or outreach message will appear here. You can also edit it directly..."
@@ -1206,10 +1238,10 @@ onUnmounted(() => {
 
         <!-- Prompt Expansion Toggle & View -->
         <div class="border-t border-slate-100 pt-3 flex flex-col gap-2">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between flex-wrap gap-2">
             <button
               type="button"
-              class="text-sm font-medium text-slate-600 hover:text-slate-800 flex items-center gap-1.5 transition-colors"
+              class="text-sm font-medium text-slate-600 hover:text-slate-800 flex items-center gap-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               @click="showOutreachPrompt = !showOutreachPrompt"
             >
               <svg
@@ -1227,7 +1259,7 @@ onUnmounted(() => {
             <button
               v-if="showOutreachPrompt && outreachPrompt && !outreachPromptError"
               type="button"
-              class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1 transition-colors"
+              class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
               @click="copyOutreachPrompt"
             >
               <svg v-if="copiedOutreachPrompt" class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1241,10 +1273,10 @@ onUnmounted(() => {
           </div>
 
           <div v-if="showOutreachPrompt" class="mt-1">
-            <div v-if="loadingOutreachPrompt" class="py-4 text-center text-sm text-slate-400 bg-slate-50 rounded">
+            <div v-if="loadingOutreachPrompt" role="status" class="py-4 text-center text-sm text-slate-400 bg-slate-50 rounded">
               Loading prompt...
             </div>
-            <div v-else-if="outreachPromptError" class="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+            <div v-else-if="outreachPromptError" role="alert" class="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
               {{ outreachPromptError }}
             </div>
             <textarea
@@ -1252,17 +1284,18 @@ onUnmounted(() => {
               readonly
               :value="outreachPrompt"
               rows="5"
-              class="w-full bg-slate-50 border border-slate-200 rounded-md p-2.5 text-sm font-mono text-slate-700 focus:outline-none resize-y"
+              aria-label="Outreach email prompt for external AI (read-only)"
+              class="w-full bg-slate-50 border border-slate-200 rounded-md p-2.5 text-sm font-mono text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 resize-y"
             ></textarea>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-end pt-3 border-t border-slate-100">
+      <div class="flex items-center justify-end gap-2 flex-wrap pt-3 border-t border-slate-100">
         <button
           type="button"
-          class="px-4 py-2 text-sm rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium transition-colors"
+          class="px-4 py-2 text-sm rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
           @click="emit('close')"
         >
           Close

@@ -14,12 +14,10 @@ const companyInitial = computed(() => {
 });
 
 const avatarColors = [
-  'bg-indigo-100 text-indigo-700',
-  'bg-violet-100 text-violet-700',
-  'bg-sky-100 text-sky-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700',
-  'bg-rose-100 text-rose-700',
+  'bg-slate-100 text-slate-700',
+  'bg-amber-100 text-amber-800',
+  'bg-stone-100 text-stone-600',
+  'bg-amber-50 text-amber-700',
 ];
 const avatarColor = computed(() => {
   const idx = (props.application.company?.length || 0) % avatarColors.length;
@@ -31,21 +29,35 @@ const followUpStatus = computed(() => {
   const today = new Date().toISOString().split("T")[0];
   const date = props.application.follow_up_date;
   if (date < today) {
-    return { label: `Overdue (${date})`, classes: "bg-red-50 text-red-700 border border-red-200" };
+    return { label: `Overdue (${date})`, classes: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-500" };
   }
   if (date === today) {
-    return { label: "Due today", classes: "bg-amber-100 text-amber-800 border border-amber-200" };
+    return { label: "Due today", classes: "bg-amber-100 text-amber-800 border border-amber-200", dot: "bg-amber-500" };
   }
-  return { label: `Follow up ${date}`, classes: "bg-slate-100 text-slate-600 border border-slate-200" };
+  return { label: `Follow up ${date}`, classes: "bg-slate-100 text-slate-600 border border-slate-200", dot: "bg-slate-400" };
 });
+
+function onCardKeydown(e) {
+  // Only trigger edit from the card itself; nested links/buttons keep
+  // their own keyboard behavior without opening the editor.
+  if (e.target !== e.currentTarget) return;
+  if (e.key === "Enter" || e.key === " " || e.code === "Space") {
+    e.preventDefault();
+    emit("edit", props.application);
+  }
+}
 </script>
 
 <template>
   <div
-    class="bg-white rounded-xl border border-slate-200 shadow-sm p-3.5 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-slate-300 transition-all"
+    role="button"
+    tabindex="0"
+    :aria-label="`Edit application: ${application.company} — ${application.role}`"
+    class="bg-white rounded-xl border border-slate-200 shadow-sm p-3.5 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-slate-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1"
     draggable="true"
     @dragstart="emit('dragstart', application, $event)"
     @click="emit('edit', application)"
+    @keydown="onCardKeydown"
   >
     <!-- Company row: avatar + name -->
     <div class="flex items-start gap-2.5 mb-1.5">
@@ -61,7 +73,7 @@ const followUpStatus = computed(() => {
           :href="application.url"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-semibold text-slate-900 text-base hover:text-amber-600 hover:underline inline-flex items-center gap-1 group leading-tight"
+          class="font-semibold text-slate-900 text-lg hover:text-amber-700 hover:underline inline-flex items-center gap-1 group leading-tight rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           @click.stop
         >
           <span class="truncate">{{ application.company }}</span>
@@ -69,7 +81,7 @@ const followUpStatus = computed(() => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
         </a>
-        <p v-else class="font-semibold text-slate-900 text-base leading-tight truncate">{{ application.company }}</p>
+        <p v-else class="font-semibold text-slate-900 text-lg leading-tight truncate">{{ application.company }}</p>
       </div>
     </div>
 
@@ -97,16 +109,18 @@ const followUpStatus = computed(() => {
       <div v-if="!isCancelled" class="flex items-center justify-between gap-2">
         <span
           v-if="followUpStatus"
-          class="px-2.5 py-1 rounded-md text-xs font-semibold inline-flex items-center gap-1"
+          class="px-2.5 py-1 rounded-md text-xs font-semibold inline-flex items-center gap-1.5"
           :class="followUpStatus.classes"
         >
+          <span class="h-1.5 w-1.5 rounded-full inline-block" :class="followUpStatus.dot"></span>
           {{ followUpStatus.label }}
         </span>
         <span v-else></span>
 
         <button
           type="button"
-          class="p-1.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 ring-1 ring-amber-100 transition-colors ml-auto"
+          aria-label="Tailor resume for this application"
+          class="p-1.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 ring-1 ring-amber-100 transition-colors ml-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           title="Tailor resume for this application"
           @click.stop="emit('tailor', application)"
         >

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Guidance for AI coding agents (Claude Code, or any subagent) working in this
-repo. Read this before touching code. Task-specific specs live in `/tasks`.
+repo. Read this before touching code.
 
 ## Project summary
 
@@ -41,19 +41,23 @@ Docker Compose for local dev with hot reload.
 - Never commit real API keys. `.env` is gitignored — use `.env.example` for
   documented defaults/placeholders if a task introduces one.
 
-## Task workflow for subagents
-Prerequisite: Always delegate task to the agent defined in `tasks/!maintask.txt` as subagent
+## Subagents
 
-1. Pick one file from `/tasks` — each is scoped to be implementable
-   independently without touching the other task's files.
-2. Implement backend changes first (model → schema → crud → router →
+**Orchestrator rules**
+- There is always one main orchestrator agent. It plans, delegates, reviews,
+  and verifies — subagents do the implementation.
+- If the orchestrator can spawn a subagent, use the `@local_llm` subagent;
+  if not, use the `local-llm` script to interact with the local model.
+
+**Workflow for subagents**
+1. Implement backend changes first (model → schema → crud → router →
    `main.py` registration), then frontend.
-3. Update `README.md`'s "API endpoints" table and "Data model" section if
+2. Update `README.md`'s "API endpoints" table and "Data model" section if
    you add/change either.
-4. Do not refactor unrelated code while implementing a task. If you spot
+3. Do not refactor unrelated code while implementing a change. If you spot
    something that should change, note it at the end of your summary instead
    of doing it inline.
-5. Mark the task file's checklist items with `[x]` as you complete them, and
-   add a `## Status` line at the top (`Not started` / `In progress` /
-   `Done`) so parallel subagents and the human can see progress at a glance.
-6. Commit message must be structured similar to `feat: <description>` as an example.
+4. Commit message must be structured similar to `feat: <description>` as an example.
+5. When a task is finished, send a very concise summary back to the
+   orchestrator (a few bullets max): files changed, build/verify result,
+   commit hash, and any blocking notes.
