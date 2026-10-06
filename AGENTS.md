@@ -41,16 +41,25 @@ Docker Compose for local dev with hot reload.
 - Never commit real API keys. `.env` is gitignored — use `.env.example` for
   documented defaults/placeholders if a task introduces one.
 
-## Subagents
+## Delegation & Orchestration
 
-**Orchestrator rules**
+**Orchestrator boundaries**
 - **Strict role boundary**: The orchestrator must **NEVER** implement code
   changes, edit project files, or execute implementation actions directly.
   Its role is strictly limited to planning, task delegation, code review,
   and verification. All implementation work belongs solely to subagents.
-- There is always one main orchestrator agent that coordinates the workflow.
-- If the orchestrator can spawn a subagent, use the `@local_llm` subagent;
-  if not, use the `local-llm` script to interact with the local model.
+- **Single coordinator**: There is always one main orchestrator agent that
+  coordinates the workflow and synthesizes results.
+
+**Delegation mechanism (Harness-agnostic)**
+When delegating implementation or scouting tasks:
+1. **Native Subagent Tooling (Preferred)**: If the current agent harness
+   supports native child agents or delegation tools (e.g., Pi's `worker` /
+   `scout`, Gemini subagents, or Claude task delegation), invoke the appropriate
+   worker subagent.
+2. **CLI Fallback**: If the current harness lacks native subagent tooling,
+   execute the workstation's `local-llm` CLI command via bash (`local-llm "<prompt>"`)
+   to dispatch the implementation task to the local model.
 
 **Workflow for subagents**
 1. Implement backend changes first (model → schema → crud → router →
