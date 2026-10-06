@@ -61,6 +61,10 @@ When delegating implementation or scouting tasks:
    execute the workstation's `local-llm` CLI command via bash (`local-llm "<prompt>"`)
    to dispatch the implementation task to the local model.
 
+- **Synchronous Execution**: Delegate tasks synchronously in foreground mode. Do not dispatch async tasks and poll in a status loop.
+- **Scoped Granularity**: Scope worker tasks to one specific file or concern at a time so local subagents remain well within their context window limits.
+- **Concise Handoffs**: Subagents must return short bullet summaries (< 20 lines). Never write runaway documentation or multi-thousand token handoff files.
+
 **Workflow for subagents**
 1. Implement backend changes first (model → schema → crud → router →
    `main.py` registration), then frontend.
