@@ -65,6 +65,12 @@ When delegating implementation or scouting tasks:
 - **Scoped Granularity**: Scope worker tasks to one specific file or concern at a time so local subagents remain well within their context window limits.
 - **Concise Handoffs**: Subagents must return short bullet summaries (< 20 lines). Never write runaway documentation or multi-thousand token handoff files.
 
+**Long-running goal workflows (`/goal` + Subagents)**
+- **Atomic Task Slicing**: When drafting or refining goal task lists, decompose features into single-file atomic tasks. Never delegate multi-file broad refactors to a local subagent in one turn.
+- **Strict Synchronous Execution**: Always delegate tasks to subagents in the foreground (`subagent({ agent: "worker", task: "..." })`). The orchestrator turn blocks while the local model works, preventing continuation timer spam and status polling loops.
+- **Single-Turn Settlement**: Once the worker returns its report, the orchestrator verifies the change, marks the goal task complete with `update_goal_task`, and immediately transitions to the next item.
+- **Zero Polling**: Never run background checks or status loops.
+
 **Workflow for subagents**
 1. Implement backend changes first (model → schema → crud → router →
    `main.py` registration), then frontend.
