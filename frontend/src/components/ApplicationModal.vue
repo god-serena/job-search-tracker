@@ -6,6 +6,7 @@ const props = defineProps({
   application: { type: Object, default: null },
 });
 const emit = defineEmits(["close", "save", "delete"]);
+const confirm = ref(false);
 const attachments = ref([]);
 const attachmentError = ref("");
 const uploading = ref(false);
@@ -252,9 +253,11 @@ function submit() {
         <div class="flex flex-wrap items-center gap-2 pt-2">
           <button
             v-if="application"
+            ref="deleteBtn"
             type="button"
             class="px-3.5 py-2 text-sm rounded-md border border-red-300 text-red-600 hover:bg-red-50 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-            @click="emit('delete', application.id)"
+            @click="confirm = true"
+            @click.self="confirm = false"
           >
             Delete Application
           </button>
@@ -269,6 +272,32 @@ function submit() {
           </div>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Delete confirmation dialog -->
+  <div v-if="confirm" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full text-center p-6">
+      <h3 class="text-lg font-semibold mb-2">Confirm Delete</h3>
+      <p class="text-sm text-slate-600 mb-4">
+        Are you sure you want to delete <strong>{{ application?.name }}</strong>? This action cannot be undone.
+      </p>
+      <div class="flex justify-center gap-3">
+        <button
+          type="button"
+          class="px-4 py-2 text-sm font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+          @click="confirm = false"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1"
+          @click="confirm = false; emit('delete', application.id); deleteBtn.focus()"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   </div>
 </template>
