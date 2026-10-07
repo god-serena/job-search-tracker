@@ -68,6 +68,9 @@ When delegating implementation or scouting tasks:
 **Long-running goal workflows (`/goal` + Subagents)**
 - **Atomic Task Slicing**: When drafting or refining goal task lists, decompose features into single-file atomic tasks. Never delegate multi-file broad refactors to a local subagent in one turn.
 - **Strict Synchronous Execution**: Always delegate tasks to subagents in the foreground (`subagent({ agent: "worker", task: "..." })`). The orchestrator turn blocks while the local model works, preventing continuation timer spam and status polling loops.
+- **Never Use `action: "resume"`**: In `pi-subagents`, `action: "resume"` is hardcoded to launch asynchronously in the background (`executeAsyncSingle`), and it bloats the local model's context window with prior history. Always dispatch fresh single runs: `subagent({ agent: "worker", task: "...", context: "fresh" })`.
+- **Never Yield While Work Is Pending**: Never return control or end a turn saying "waiting for completion". In `/goal`, an idle turn immediately triggers `pi-goal-x`'s zero-delay continuation checkpoint loop, burning millions of tokens in minutes. If an async or revived run ID is ever encountered, the orchestrator MUST immediately invoke `subagent({ action: "wait", id: "<run_id>" })` in the same turn to block until completion.
+- **Handling Worker No-Ops**: If a worker finishes without applying edits, do not resume it or poll status. Review the worker's output, refine the task prompt with explicit line targets, and dispatch a fresh synchronous single worker.
 - **Single-Turn Settlement**: Once the worker returns its report, the orchestrator verifies the change, marks the goal task complete with `update_goal_task`, and immediately transitions to the next item.
 - **Zero Polling**: Never run background checks or status loops.
 
