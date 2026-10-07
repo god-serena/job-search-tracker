@@ -1,12 +1,12 @@
 <script setup>
-import { computed } from "vue";
-import { api } from "../api";
+import { computed, ref } from "vue";
+import KeyboardStatusModal from "./KeyboardStatusModal.vue";
 
 const props = defineProps({
   application: { type: Object, required: true },
   documents: { type: Array, default: () => [] }
 });
-const emit = defineEmits(["edit", "dragstart", "tailor"]);
+const emit = defineEmits(["dragstart", "tailor"]);
 
 const isCancelled = computed(() => props.application.status === "cancelled");
 
@@ -31,41 +31,23 @@ const followUpStatus = computed(() => {
   const today = new Date().toISOString().split("T")[0];
   const date = props.application.follow_up_date;
   if (date < today) {
-    return { label: `Overdue (${date})`, classes: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-500" };
+    return { label: `Overdue (${date})`, classes: "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 border border-red-200 dark:border-red-800", dot: "bg-red-500" };
   }
   if (date === today) {
-    return { label: "Due today", classes: "bg-amber-100 text-amber-800 border border-amber-200", dot: "bg-amber-500" };
+    return { label: "Due today", classes: "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-700", dot: "bg-amber-500" };
   }
-  return { label: `Follow up ${date}`, classes: "bg-slate-100 text-slate-600 border border-slate-200", dot: "bg-slate-400" };
+  return { label: `Follow up ${date}`, classes: "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600", dot: "bg-slate-400" };
 });
 
-function onManageFilesClick(e) {
-  e.stopPropagation();
-  emit("edit", props.application);
-}
-
-function onCardKeydown(e) {
-  // Only trigger edit from the card itself; nested links/buttons keep
-  // their own keyboard behavior without opening the editor.
-  if (e.target !== e.currentTarget) return;
-  if (e.key === "Enter" || e.key === " " || e.code === "Space") {
-    e.preventDefault();
-    emit("edit", props.application);
-  }
-}
 </script>
 
 <template>
   <div
-    role="button"
-    tabindex="0"
-    :aria-label="`Edit application: ${application.company} — ${application.role}`"
-    class="bg-white rounded-xl border border-slate-200 shadow-sm p-3.5 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-slate-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1"
+    class="p-3.5 mb-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all focus-within:ring-2 focus-within:ring-amber-400"
     draggable="true"
     @dragstart="emit('dragstart', application, $event)"
-    @click="emit('edit', application)"
-    @keydown="onCardKeydown"
   >
+
     <!-- Company row: avatar + name -->
     <div class="flex items-start gap-2.5 mb-1.5">
       <div
@@ -80,23 +62,23 @@ function onCardKeydown(e) {
           :href="application.url"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-semibold text-slate-900 text-lg hover:text-amber-700 hover:underline inline-flex items-center gap-1 group leading-tight rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          class="font-semibold text-slate-900 dark:text-slate-100 text-lg hover:text-amber-700 dark:hover:text-amber-300 hover:underline inline-flex items-center gap-1 group leading-tight rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           @click.stop
         >
           <span class="truncate">{{ application.company }}</span>
-          <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
         </a>
-        <p v-else class="font-semibold text-slate-900 text-lg leading-tight truncate">{{ application.company }}</p>
+        <p v-else class="font-semibold text-slate-900 dark:text-slate-100 text-lg leading-tight truncate">{{ application.company }}</p>
       </div>
     </div>
 
-    <p class="text-slate-500 text-sm mb-2 font-medium pl-10">{{ application.role }}</p>
+    <p class="text-slate-500 text-sm mb-2 font-medium">{{ application.role }}</p>
 
     <p
       v-if="application.description && !isCancelled"
-      class="text-slate-600 text-sm mb-2.5 line-clamp-2 bg-slate-50 rounded-md p-2 border border-slate-100 italic"
+      class="text-slate-600 dark:text-slate-300 text-sm mb-2.5 line-clamp-2 bg-slate-50 dark:bg-slate-700 rounded-md p-2 border border-slate-100 dark:border-slate-600 italic"
     >
       {{ application.description.slice(0, 80) }}{{ application.description.length > 80 ? '\u2026' : '' }}
     </p>
@@ -127,7 +109,7 @@ function onCardKeydown(e) {
         <button
           type="button"
           aria-label="Tailor resume for this application"
-          class="p-1.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 ring-1 ring-amber-100 transition-colors ml-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          class="p-1.5 rounded-md bg-amber-50 dark:bg-amber-900 hover:bg-amber-100 dark:hover:bg-amber-800 text-amber-700 dark:text-amber-200 border border-amber-200 dark:border-amber-700 ring-1 ring-amber-100 dark:ring-amber-800 transition-colors ml-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           title="Tailor resume for this application"
           @click.stop="emit('tailor', application)"
         >
@@ -137,39 +119,16 @@ function onCardKeydown(e) {
         </button>
       </div>
 
-      <!-- Document list + Manage files -->
+      <!-- Document list-->
       <div class="flex flex-col gap-2">
         <ul v-if="documents.length" role="list" aria-label="Attached documents" class="flex flex-wrap gap-2">
-          <li v-for="doc in documents" :key="doc.id" class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-xs text-slate-600">
+          <li v-for="doc in documents" :key="doc.id" class="inline-flex items-center w-full gap-1.5 px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-200">
             <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 5H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
-            <span class="truncate max-w-[110px]">{{ doc.document_type === 'resume' ? 'Resume' : 'Cover letter' }}: {{ doc.filename }}</span>
-            <a
-              :href="api.applicationDocumentDownloadUrl(application.id, doc.id)"
-              :download="doc.filename"
-              class="text-slate-400 hover:text-amber-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-              :aria-label="`Download ${doc.document_type === 'resume' ? 'Resume' : 'Cover letter'}: ${doc.filename}`"
-              title="Download"
-              @click.stop
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </a>
+            <span class="truncate w-full">{{ doc.document_type === 'resume' ? 'Resume' : 'Cover letter' }}: {{ doc.filename }}</span>
           </li>
         </ul>
-        <button
-          type="button"
-          @click.stop="onManageFilesClick"
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-          :aria-label="documents.length ? 'Manage files for this application' : 'Attach files for this application'"
-        >
-          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          {{ documents.length ? 'Manage files' : 'Attach files' }}
-        </button>
       </div>
     </div>
   </div>

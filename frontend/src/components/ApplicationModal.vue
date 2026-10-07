@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { api } from "../api";
 
 const props = defineProps({
@@ -7,10 +7,22 @@ const props = defineProps({
 });
 const emit = defineEmits(["close", "save", "delete"]);
 const confirm = ref(false);
+const panelRef = ref(null);
+const confirmPanelRef = ref(null);
+const deleteBtn = ref(null);
+let previousActiveElement = null;
+let previousBodyOverflow = "";
 const attachments = ref([]);
 const attachmentError = ref("");
 const uploading = ref(false);
 const supportedFileTypes = ".pdf,.doc,.docx,.rtf,.odt,.txt";
+
+const deleteLabel = computed(() => {
+  const company = props.application?.company?.trim();
+  const role = props.application?.role?.trim();
+  if (company && role) return `${role} at ${company}`;
+  return company || role || "this application";
+});
 
 // Format date to readable string
 function formatDate(iso) {
@@ -91,15 +103,65 @@ function submit() {
   });
   emit("save", payload);
 }
+const FOCUSABLE_SELECTOR = ["a[href]", "button:not([disabled])", "input:not([disabled])", "select:not([disabled])", "textarea:not([disabled])", '[tabindex]:not([tabindex="-1"])'].join(", ");
+
+function getFocusableElements(container) {
+  if (!container) return [];
+  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => element.offsetParent !== null);
+}
+
+function handleKeydown(event) {
+  if (event.key === "Escape") {
+    if (confirm.value) confirm.value = false;
+    else emit("close");
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const container = confirm.value ? confirmPanelRef.value : panelRef.value;
+  const focusable = getFocusableElements(container);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+  if (event.shiftKey && (!container.contains(active) || active === first)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (!container.contains(active) || active === last)) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+watch(confirm, (open) => {
+  nextTick(() => {
+    if (open) getFocusableElements(confirmPanelRef.value)[0]?.focus();
+    else if (deleteBtn.value?.isConnected) deleteBtn.value.focus();
+  });
+});
+
+onMounted(() => {
+  previousActiveElement = document.activeElement;
+  previousBodyOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
+  document.addEventListener("keydown", handleKeydown);
+  nextTick(() => getFocusableElements(panelRef.value)[0]?.focus());
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("keydown", handleKeydown);
+  document.body.style.overflow = previousBodyOverflow;
+  if (previousActiveElement?.isConnected) previousActiveElement.focus();
+});
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+  <div class="fixed inset-0 bg-slate-900/40 flex items-start justify-center overflow-y-auto z-50 p-4 sm:p-6" @click.self="emit('close')">
     <div
+      ref="panelRef"
       role="dialog"
       aria-modal="true"
       aria-labelledby="app-modal-title"
-      class="bg-white rounded-xl shadow-lg border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
+      class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 w-full max-w-lg my-6 sm:my-8 p-6"
     >
       <h2 id="app-modal-title" class="text-lg font-semibold text-slate-800 mb-4">
         {{ application ? "Edit Application" : "New Application" }}
@@ -126,30 +188,29 @@ function submit() {
             />
           </label>
         </div>
-
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label class="flex-1 text-sm font-medium text-slate-700 flex flex-col gap-1">
-            Job posting URL
+        <label class="flex-1 text-sm font-medium text-slate-700 gap-1 flex flex-col">
+          Job posting URL
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
               id="url"
               v-model="form.url"
               class="border border-slate-300 rounded-md px-3 py-2.5 text-sm sm:text-base flex-1 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/40"
             />
-          </label>
-          <a
-            v-if="form.url"
-            :href="form.url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="px-3.5 py-2 text-sm rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 shrink-0 flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-          >
-            Open
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
-        </div>
+            <a
+              v-if="form.url"
+              :href="form.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="px-3.5 py-2 text-sm rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 shrink-0 flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            >
+              Open
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
 
+          </div>
+        </label>
         <label class="text-sm font-medium text-slate-700 flex flex-col gap-1">
           Status
           <select
@@ -217,7 +278,7 @@ function submit() {
           </div>
 
           <div v-if="uploading" role="status" class="text-xs text-slate-500">Uploading…</div>
-          <div v-if="attachmentError" role="alert" class="text-xs text-red-600">{{ attachmentError }}</div>
+          <div v-if="attachmentError" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ attachmentError }}</div>
           <ul v-if="attachments.length" role="list" aria-label="Attached documents" class="border-t border-slate-200 pt-3 space-y-2">
             <li v-for="document in attachments" :key="document.id" class="flex items-center justify-between gap-3">
               <div class="flex items-center gap-2 min-w-0">
@@ -230,7 +291,7 @@ function submit() {
               <a
                 :href="api.applicationDocumentDownloadUrl(application.id, document.id)"
                 :download="document.filename"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-amber-600 hover:border-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 transition-colors"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-amber-600 hover:border-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 transition-colors dark:hover:text-amber-400 dark:hover:border-amber-500"
                 :aria-label="`Download ${document.document_type === 'resume' ? 'Resume' : 'Cover letter'}: ${document.filename}`"
               >
                 Download
@@ -255,18 +316,17 @@ function submit() {
             v-if="application"
             ref="deleteBtn"
             type="button"
-            class="px-3.5 py-2 text-sm rounded-md border border-red-300 text-red-600 hover:bg-red-50 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+            class="px-3.5 py-2 text-sm rounded-md border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
             @click="confirm = true"
-            @click.self="confirm = false"
           >
             Delete Application
           </button>
           <div class="flex flex-wrap gap-2 ml-auto">
-            <button type="button" class="px-4 py-2 text-sm sm:text-base font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+            <button type="button" class="px-4 py-2 text-sm sm:text-base font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-800"
               @click="emit('close')">
               Discard
             </button>
-            <button type="submit" class="px-4 py-2 text-sm sm:text-base font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1">
+            <button type="submit" class="px-4 py-2 text-sm sm:text-base font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-800">
               Save Application
             </button>
           </div>
@@ -276,23 +336,23 @@ function submit() {
   </div>
 
   <!-- Delete confirmation dialog -->
-  <div v-if="confirm" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full text-center p-6">
-      <h3 class="text-lg font-semibold mb-2">Confirm Delete</h3>
+  <div v-if="confirm" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="confirm = false">
+    <div ref="confirmPanelRef" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title" class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-sm w-full text-center p-6">
+      <h3 id="delete-confirm-title" class="text-lg font-semibold mb-2">Confirm Delete</h3>
       <p class="text-sm text-slate-600 mb-4">
-        Are you sure you want to delete <strong>{{ application?.name }}</strong>? This action cannot be undone.
+        Are you sure you want to delete <strong>{{ deleteLabel }}</strong>? This action cannot be undone.
       </p>
       <div class="flex justify-center gap-3">
         <button
           type="button"
-          class="px-4 py-2 text-sm font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+          class="px-4 py-2 text-sm font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-800"
           @click="confirm = false"
         >
           Cancel
         </button>
         <button
           type="button"
-          class="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1"
+          class="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-800"
           @click="confirm = false; emit('delete', application.id); deleteBtn.focus()"
         >
           Delete

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 
 const props = defineProps({
   content: { type: String, default: "" },
@@ -12,20 +12,64 @@ const emit = defineEmits(["close"]);
 const selectedTemplate = ref("ats"); // "ats" | "modern" | "executive"
 const pageMode = ref("fit"); // "fit" | "multi"
 const selectedDensity = ref("compact"); // "compact" | "normal"
+const fitOverflow = ref(false);
+const dialog = ref(null);
+let previouslyFocused = null;
 
+function isTopmostDialog() {
+  const dialogs = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')];
+  return dialogs.at(-1) === dialog.value;
+}
+
+function focusableElements() {
+  return [...dialog.value.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+    .filter((element) => element.getClientRects().length > 0);
+}
 
 function handleKeyDown(event) {
+  if (!isTopmostDialog()) return;
   if (event.key === "Escape") {
     emit("close");
+    return;
+  }
+  if (event.key === "Tab") {
+    const items = focusableElements();
+    if (!items.length) {
+      event.preventDefault();
+      dialog.value?.focus();
+      return;
+    }
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !dialog.value.contains(document.activeElement))) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !dialog.value.contains(document.activeElement))) {
+      event.preventDefault(); first.focus();
+    }
   }
 }
 
-onMounted(() => {
+function checkFitOverflow() {
+  if (pageMode.value !== "fit") { fitOverflow.value = false; return; }
+  nextTick(() => {
+    const sheet = dialog.value?.querySelector(".a4-page-sheet");
+    fitOverflow.value = !!sheet && sheet.scrollHeight > sheet.clientHeight + 1;
+  });
+}
+
+watch([pageMode, selectedTemplate, selectedDensity, () => props.content], checkFitOverflow, { flush: "post" });
+
+onMounted(async () => {
+  previouslyFocused = document.activeElement;
   window.addEventListener("keydown", handleKeyDown);
+  await nextTick();
+  focusableElements()[0]?.focus();
+  checkFitOverflow();
 });
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
+  if (previouslyFocused?.isConnected) previouslyFocused.focus();
 });
 
 // Simple Fit Screen zoom function
@@ -437,16 +481,18 @@ function handlePrint() {
   <Teleport to="body">
     <div
       id="resume-print-root"
+      ref="dialog"
+      tabindex="-1"
       role="dialog"
       aria-modal="true"
       aria-label="Resume preview and print"
-      class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center overflow-y-auto p-4 sm:p-6 preview-modal-backdrop"
-      @click.self="emit('close')"
+      class="fixed inset-0 z-50 bg-slate-950/85 dark:bg-slate-950/90 backdrop-blur-sm flex flex-col items-center overflow-y-auto p-4 sm:p-6 preview-modal-backdrop"
+      @click.self="isTopmostDialog() && emit('close')"
     >
       <!-- Control Toolbar (Sticky Top, no-print) -->
       <header
         aria-label="Preview controls"
-        class="no-print sticky top-0 z-30 w-full max-w-5xl bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 sm:p-4 mb-6 [&_button]:focus-visible:outline-none [&_button]:focus-visible:ring-2 [&_button]:focus-visible:ring-amber-400 border border-slate-700/80 transition-all"
+        class="no-print sticky top-0 z-30 w-full max-w-5xl bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 sm:p-4 mb-6 [&_button]:focus-visible:outline-none [&_button]:focus-visible:ring-2 [&_button]:focus-visible:ring-amber-400 border border-slate-700/80 dark:border-slate-600/80 transition-all"
       >
         <!-- Tier 1: Document Title, Status Badge & Primary Actions -->
         <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 pb-2.5 border-b border-slate-800/80">
@@ -463,7 +509,14 @@ function handlePrint() {
 
             <!-- Live Page Badge -->
             <span
-              v-if="pageCount === 1"
+              v-if="pageMode === 'fit' && fitOverflow"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-950/80 text-amber-300 border border-amber-600/40 shadow-xs shrink-0"
+              title="Content does not fit on one A4 page and is clipped in Fit 1 Page mode."
+            >
+              <span>1 Page (clipped)</span>
+            </span>
+            <span
+              v-else-if="pageCount === 1"
               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-600/40 shadow-xs shrink-0"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -572,6 +625,11 @@ function handlePrint() {
                 </button>
               </div>
 
+              <p v-if="pageMode === 'fit' && fitOverflow" role="status" aria-live="polite" class="flex flex-wrap items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-amber-950/80 text-amber-300 border border-amber-600/40 shadow-xs">
+                <span>Content exceeds one A4 page and is clipped in Fit 1 Page mode.</span>
+                <button type="button" class="px-2.5 py-1 text-xs sm:text-sm font-semibold rounded-md bg-amber-500 text-slate-950 hover:bg-amber-400 transition-colors cursor-pointer" @click="pageMode = 'multi'">Switch to Multi-Page</button>
+              </p>
+
               <!-- Density -->
               <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-xs">
                 <button
@@ -645,7 +703,7 @@ function handlePrint() {
 
       <!-- Printable Resume Sheet Container -->
       <div
-        class="preview-sheet-wrapper flex flex-col items-center pb-12 origin-top"
+        class="preview-sheet-wrapper flex flex-col items-center pb-12 origin-top bg-transparent"
         :style="{
           transform: `scale(${zoom})`,
           transformOrigin: 'top center'

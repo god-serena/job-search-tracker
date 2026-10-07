@@ -1,7 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { api } from "../api";
-import ApplicationCard from "./ApplicationCard.vue";
 import ApplicationModal from "./ApplicationModal.vue";
 import StatsBar from "./StatsBar.vue";
 import TailorModal from "./TailorModal.vue";
@@ -17,12 +16,12 @@ const columns = [
 ];
 
 const colStyle = {
-  wishlist:     { border: 'border-sky-300',     label: 'text-sky-700' },
-  applied:      { border: 'border-amber-300',   label: 'text-amber-700' },
-  interviewing: { border: 'border-violet-300',  label: 'text-violet-700' },
-  offer:        { border: 'border-emerald-300', label: 'text-emerald-700' },
-  rejected:     { border: 'border-rose-300',    label: 'text-rose-700' },
-  cancelled:    { border: 'border-slate-300',   label: 'text-slate-500' },
+  wishlist:     { border: 'border-sky-300',     label: 'text-sky-700 dark:text-sky-300' },
+  applied:      { border: 'border-amber-300',   label: 'text-amber-700 dark:text-amber-300' },
+  interviewing: { border: 'border-violet-300',  label: 'text-violet-700 dark:text-violet-300' },
+  offer:        { border: 'border-emerald-300', label: 'text-emerald-700 dark:text-emerald-300' },
+  rejected:     { border: 'border-rose-300',    label: 'text-rose-700 dark:text-rose-300' },
+  cancelled:    { border: 'border-slate-300',   label: 'text-slate-500 dark:text-slate-400' },
 };
 
 const applications = ref([]);
@@ -117,6 +116,7 @@ const filteredApplications = computed(() => {
 });
 
 const filteredCount = computed(() => filteredApplications.value.length);
+const noMatches = computed(() => isFiltered.value && filteredCount.value === 0);
 
 const grouped = computed(() => {
   const map = Object.fromEntries(columns.map((c) => [c.key, []]));
@@ -148,10 +148,6 @@ const grouped = computed(() => {
 
   return map;
 });
-
-const counts = computed(() =>
-  Object.fromEntries(columns.map((c) => [c.key, grouped.value[c.key].length]))
-);
 
 async function loadApplications() {
   loading.value = true;
@@ -237,18 +233,34 @@ async function onDrop(status) {
   }
 }
 
+async function onStatusChanged(status, id) {
+  const app = applications.value.find((a) => a.id === id);
+  if (!app || app.status === status) return;
+  const previousStatus = app.status;
+  app.status = status;
+  try {
+    await api.update(id, { status });
+    await loadStats();
+  } catch (e) {
+    app.status = previousStatus;
+    console.error("Failed to update status:", e);
+  }
+}
+
 onMounted(() => {
   loadApplications();
   loadStats();
   loadAllDocuments();
 });
 
+// Exposed so App.vue can trigger the create modal from the header button.
+defineExpose({ openCreateModal });
 
 </script>
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <div class="px-4 sm:px-6 pt-4 pb-2 shrink-0 max-h-[55%] overflow-y-auto flex flex-col gap-3">
+    <div class="px-4 sm:px-6 pt-3 pb-2 shrink-0 max-h-[40%] sm:max-h-[45%] md:max-h-[50%] lg:max-h-[55%] [@media(max-height:700px)]:max-h-[40%] overflow-y-auto flex flex-col gap-2 sm:gap-3">
       <!-- Board heading -->
       <h2 class="text-lg font-semibold text-slate-800">Job Board</h2>
 
@@ -259,28 +271,8 @@ onMounted(() => {
         class="order-last sm:order-none shrink-0"
       />
 
-      <!-- Column Counts & Add Action -->
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex flex-wrap gap-2">
-          <span
-            v-for="c in columns"
-            :key="c.key"
-            class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-full px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm"
-          >
-            {{ c.label }}
-            <strong class="text-slate-800 font-bold">{{ counts[c.key] }}</strong>
-          </span>
-        </div>
-        <button
-          class="w-full sm:w-auto bg-amber-600 text-white text-sm sm:text-base px-4 py-2 rounded-md hover:bg-amber-700 transition-colors font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
-          @click="openCreateModal"
-        >
-          ＋ New Application
-        </button>
-      </div>
-
       <!-- Search, Filter & Sort Toolbar -->
-      <div class="bg-slate-50/80 border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="bg-slate-50/80 dark:bg-slate-800/80 border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex flex-1 items-center gap-3 flex-wrap">
           <!-- Search input -->
           <div class="relative flex-1 min-w-[200px] max-w-none sm:max-w-xs">
@@ -353,18 +345,18 @@ onMounted(() => {
         </span>
         <button
           @click="resetFilters"
-          class="text-amber-700 hover:text-amber-900 font-medium text-sm rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          class="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 font-medium text-sm rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
         >
           Clear filters
         </button>
       </div>
     </div>
 
-    <p v-if="error" role="alert" class="text-red-600 text-sm px-4 sm:px-6 shrink-0">{{ error }}</p>
+    <p v-if="error" role="alert" class="text-red-600 dark:text-red-400 text-sm px-4 sm:px-6 shrink-0">{{ error }}</p>
     <p v-if="loading" role="status" class="text-slate-500 text-sm px-4 sm:px-6 shrink-0">Loading…</p>
 
     <KanbanColumns
-      v-if="!loading && !error"
+      v-if="!loading && !error && !noMatches"
       :columns="columns"
       :grouped="grouped"
       :documents-map="documentMap"
@@ -374,7 +366,36 @@ onMounted(() => {
       @edit="openEditModal"
       @dragstart="onDragStart"
       @tailor="openTailorModal"
+      @status-changed="onStatusChanged"
     />
+
+    <div
+      v-else-if="!loading && !error"
+      class="flex-1 min-h-0 flex items-center justify-center p-4 sm:px-6"
+    >
+      <div
+        role="status"
+        class="w-full max-w-md bg-white border border-slate-200 rounded-xl p-6 sm:p-8 text-center shadow-sm"
+      >
+        <svg class="mx-auto h-10 w-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <h3 class="mt-3 text-base font-semibold text-slate-800">No matching applications</h3>
+        <p class="mt-1 text-sm text-slate-500">
+          No applications match your current search and filters.
+          <template v-if="searchQuery.trim()">
+            Try a different term for &ldquo;{{ searchQuery.trim() }}&rdquo;.
+          </template>
+        </p>
+        <button
+          type="button"
+          @click="resetFilters"
+          class="mt-4 bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-md hover:bg-amber-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+        >
+          Clear search &amp; filters
+        </button>
+      </div>
+    </div>
 
     <ApplicationModal
       v-if="modalOpen"

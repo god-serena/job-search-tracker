@@ -8,7 +8,11 @@ const props = defineProps({
   documentsMap: { type: Object, default: () => ({}) },
 });
 
-const emit = defineEmits(["drop", "edit", "dragstart", "tailor"]);
+const emit = defineEmits(["drop", "edit", "dragstart", "tailor", "status-changed"]);
+
+function onStatusChanged(status, id) {
+  emit("status-changed", status, id);
+}
 
 const dotColor = {
   wishlist:     'bg-sky-300',
@@ -39,7 +43,7 @@ const dotColor = {
               <h3 class="flex-1 text-sm font-semibold text-slate-700" :class="colStyle[col.key]?.label">
                 {{ col.label }}
               </h3>
-              <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+              <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-slate-800 dark:text-amber-300 dark:ring-amber-700">
                 {{ grouped[col.key]?.length || 0 }}
               </span>
             </header>
@@ -54,6 +58,8 @@ const dotColor = {
                 @edit="emit('edit', $event)"
                 @dragstart="emit('dragstart', $event)"
                 @tailor="emit('tailor', $event)"
+                @status-changed="onStatusChanged"
+                @click="emit('edit', $event)"
               />
               <p
                 v-if="!grouped[col.key]?.length"
@@ -68,7 +74,7 @@ const dotColor = {
       <!-- Subtle right-edge fade hinting that more columns are scrollable -->
       <div
         aria-hidden="true"
-        class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent"
+        class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent dark:from-slate-900"
       />
     </div>
   </section>

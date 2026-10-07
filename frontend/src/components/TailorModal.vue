@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { api } from "../api";
 import ResumeTemplatePreview from "./ResumeTemplatePreview.vue";
 
@@ -9,13 +9,24 @@ const props = defineProps({
 
 const emit = defineEmits(["close"]);
 
+const tailorDialog = ref(null);
+let previouslyFocused = null;
+let previousBodyOverflow = "";
+
 // Active Tab
 const previewContent = ref(null);
 const previewModalOpen = ref(false);
 const latestGeneratedResume = ref(null);
+let previewOpener = null;
 
-function openPreview(c) {
+function closePreview() {
+  previewModalOpen.value = false;
+  nextTick(() => previewOpener?.focus());
+}
+
+function openPreview(c, event) {
   previewContent.value = c || "";
+  previewOpener = event?.currentTarget || null;
   previewModalOpen.value = true;
 }
 
@@ -230,15 +241,15 @@ function formatDate(isoString) {
 
 function getSourceBadgeClass(source) {
   if (source && source.startsWith("local:")) {
-    return "bg-indigo-50 text-indigo-700 border-indigo-200";
+    return "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200";
   }
   switch (source) {
     case "ChatGPT":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
     case "Claude":
-      return "bg-amber-50 text-amber-800 border-amber-200";
+      return "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800";
     case "Gemini":
-      return "bg-sky-50 text-sky-700 border-sky-200";
+      return "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200";
     default:
       return "bg-slate-100 text-slate-700 border-slate-200";
   }
@@ -395,33 +406,58 @@ watch(activeTab, (newTab) => {
 });
 
 function handleKeyDown(event) {
+  // The nested preview owns Escape, Tab, and focus while it is open.
+  if (previewModalOpen.value) return;
+
   if (event.key === "Escape") {
-    if (previewModalOpen.value) {
-      previewModalOpen.value = false;
-      return;
-    }
     emit("close");
+    return;
+  }
+
+  if (event.key !== "Tab") return;
+
+  const focusable = Array.from(tailorDialog.value?.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  ) || []).filter(el => !el.hasAttribute("disabled") && el.getClientRects().length > 0);
+  if (!focusable.length) return;
+
+  const index = focusable.indexOf(event.target);
+  if (event.shiftKey && (index <= 0)) {
+    event.preventDefault();
+    focusable[focusable.length - 1].focus();
+  } else if (!event.shiftKey && (index < 0 || index === focusable.length - 1)) {
+    event.preventDefault();
+    focusable[0].focus();
   }
 }
 
 onMounted(() => {
+  previouslyFocused = document.activeElement;
+  previousBodyOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
   loadPrompt();
   loadVersions();
+  nextTick(() => tailorDialog.value?.focus());
   window.addEventListener("keydown", handleKeyDown);
 });
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
+  document.body.style.overflow = previousBodyOverflow;
+  previewOpener = null;
+  if (previouslyFocused?.isConnected) previouslyFocused.focus();
 });
 </script>
 
 <template>
   <div
     class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-50 p-4 sm:p-6"
-    @click.self="emit('close')"
+    @click.self="!previewModalOpen && emit('close')"
   >
     <div
+      ref="tailorDialog"
       role="dialog"
+      tabindex="-1"
       aria-modal="true"
       aria-labelledby="tailor-modal-title"
       class="bg-white rounded-xl shadow-xl w-full max-w-3xl my-6 sm:my-8 p-4 sm:p-6 flex flex-col gap-5"
@@ -464,7 +500,7 @@ onUnmounted(() => {
           class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           :class="
             activeTab === 'resume'
-              ? 'border-amber-600 text-amber-900 font-semibold'
+              ? 'border-amber-600 text-amber-900 dark:text-amber-200 font-semibold'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
           "
           @click="activeTab = 'resume'"
@@ -481,7 +517,7 @@ onUnmounted(() => {
           class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           :class="
             activeTab === 'cover-letter'
-              ? 'border-amber-600 text-amber-900 font-semibold'
+              ? 'border-amber-600 text-amber-900 dark:text-amber-200 font-semibold'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
           "
           @click="activeTab = 'cover-letter'"
@@ -498,7 +534,7 @@ onUnmounted(() => {
           class="px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           :class="
             activeTab === 'outreach'
-              ? 'border-amber-600 text-amber-900 font-semibold'
+              ? 'border-amber-600 text-amber-900 dark:text-amber-200 font-semibold'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
           "
           @click="activeTab = 'outreach'"
@@ -527,7 +563,7 @@ onUnmounted(() => {
               v-if="!promptError && !loadingPrompt"
               type="button"
               class="px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-1.5 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
-              :class="copiedPrompt ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white hover:bg-slate-700'"
+              :class="copiedPrompt ? 'bg-emerald-600 text-white' : 'bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600'"
               @click="copyPrompt"
             >
               <svg v-if="copiedPrompt" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -549,27 +585,27 @@ onUnmounted(() => {
           <div
             v-else-if="promptError"
             role="alert"
-            class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm flex flex-col gap-2"
+            class="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-sm flex flex-col gap-2"
           >
             <div class="flex items-start gap-2.5">
               <svg class="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <div class="flex-1">
-                <p class="font-semibold text-amber-900">{{ promptError }}</p>
-                <p v-if="isResumeMissing" class="mt-1 text-amber-800 leading-relaxed">
+                <p class="font-semibold text-amber-900 dark:text-amber-200">{{ promptError }}</p>
+                <p v-if="isResumeMissing" class="mt-1 text-amber-800 dark:text-amber-300 leading-relaxed">
                   A base resume is required to build tailoring prompts. Please click the <strong>Resume</strong> button in the top navigation bar to configure your master resume first.
                 </p>
-                <p v-else-if="isDescriptionMissing" class="mt-1 text-amber-800 leading-relaxed">
+                <p v-else-if="isDescriptionMissing" class="mt-1 text-amber-800 dark:text-amber-300 leading-relaxed">
                   This application requires a job description. Please edit this application on the board and paste the job description text.
                 </p>
-                <p v-else class="mt-1 text-amber-800 leading-relaxed">
+                <p v-else class="mt-1 text-amber-800 dark:text-amber-300 leading-relaxed">
                   Please verify application details and base resume configuration.
                 </p>
               </div>
               <button
                 type="button"
-                class="px-2.5 py-1 text-sm font-medium bg-amber-100 hover:bg-amber-200 text-amber-900 rounded shrink-0 border border-amber-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+                class="px-2.5 py-1 text-sm font-medium bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800 text-amber-900 dark:text-amber-200 rounded shrink-0 border border-amber-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
                 @click="loadPrompt"
               >
                 View Prompt
@@ -609,14 +645,14 @@ onUnmounted(() => {
           <div
             v-if="localError"
             role="alert"
-            class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2.5"
+            class="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-300 flex items-start gap-2.5"
           >
-            <svg class="w-4 h-4 text-red-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-red-600 dark:text-red-300 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div class="flex-1">
               <p class="font-semibold">{{ localError }}</p>
-              <p class="mt-0.5 text-red-600 text-xs">
+              <p class="mt-0.5 text-red-600 dark:text-red-300 text-xs">
                 Ensure your local LLM service (Ollama) is active at the configured endpoint and the specified model is installed.
               </p>
             </div>
@@ -634,7 +670,7 @@ onUnmounted(() => {
           <div
             v-if="localSuccess"
             role="status"
-            class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800 flex items-center justify-between gap-2 flex-wrap"
+            class="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-sm text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-2 flex-wrap"
           >
             <div class="flex items-center gap-2">
               <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -646,7 +682,7 @@ onUnmounted(() => {
               v-if="latestGeneratedResume"
               type="button"
               class="px-2.5 py-1 text-sm font-medium rounded bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
-              @click="openPreview(latestGeneratedResume)"
+              @click="openPreview(latestGeneratedResume, $event)"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -672,7 +708,7 @@ onUnmounted(() => {
 
             <button
               type="button"
-              class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+              class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 dark:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
               :disabled="generatingLocal || Boolean(promptError)"
               @click="generateLocalResume"
             >
@@ -726,7 +762,7 @@ onUnmounted(() => {
             </svg>
             <div>
               <p class="font-medium">Sending prompt to local LLM ({{ localModel || 'llama3' }})...</p>
-              <p class="text-xs text-indigo-600">Local generation may take several seconds depending on your hardware.</p>
+              <p class="text-xs text-indigo-600 dark:text-indigo-300">Local generation may take several seconds depending on your hardware.</p>
             </div>
           </div>
         </section>
@@ -756,11 +792,11 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div v-if="saveError" role="alert" class="bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2 rounded-md">
+          <div v-if="saveError" role="alert" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 text-sm px-3 py-2 rounded-md">
             {{ saveError }}
           </div>
 
-          <div v-if="saveSuccess" role="status" class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-3 py-2 rounded-md">
+          <div v-if="saveSuccess" role="status" class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-sm px-3 py-2 rounded-md">
             {{ saveSuccess }}
           </div>
 
@@ -811,7 +847,7 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <div v-if="versionsError" role="alert" class="text-sm text-red-600 bg-red-50 p-2.5 rounded border border-red-200">
+          <div v-if="versionsError" role="alert" class="text-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950/40 p-2.5 rounded border border-red-200 dark:border-red-800">
             {{ versionsError }}
           </div>
 
@@ -853,7 +889,7 @@ onUnmounted(() => {
                     class="px-2.5 py-1 text-sm font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
                     title="Preview formatted template or print to PDF"
                     aria-label="Preview and print this tailored resume version"
-                    @click="openPreview(v.content)"
+                    @click="openPreview(v.content, $event)"
                   >
                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -927,14 +963,14 @@ onUnmounted(() => {
         <div
           v-if="coverLetterError"
           role="alert"
-          class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2.5"
+          class="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-300 flex items-start gap-2.5"
         >
-          <svg class="w-4 h-4 text-red-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 text-red-600 dark:text-red-300 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div class="flex-1">
             <p class="font-semibold">{{ coverLetterError }}</p>
-            <p class="mt-0.5 text-red-600 text-xs">
+            <p class="mt-0.5 text-red-600 dark:text-red-300 text-xs">
               Ensure your master resume and this application's job description are provided, and local LLM is running.
             </p>
           </div>
@@ -952,7 +988,7 @@ onUnmounted(() => {
         <div
           v-if="coverLetterSuccess"
           role="status"
-          class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800 flex items-center gap-2"
+          class="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-sm text-emerald-800 dark:text-emerald-300 flex items-center gap-2"
         >
           <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -978,7 +1014,7 @@ onUnmounted(() => {
 
           <button
             type="button"
-            class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+            class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 dark:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
             :disabled="generatingCoverLetter"
             @click="generateCoverLetter"
           >
@@ -1014,7 +1050,7 @@ onUnmounted(() => {
               v-if="generatedCoverLetter"
               type="button"
               class="px-3 py-1 text-sm font-medium rounded-md flex items-center gap-1.5 transition-colors shadow-sm"
-              :class="copiedCoverLetter ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white hover:bg-slate-700'"
+              :class="copiedCoverLetter ? 'bg-emerald-600 text-white' : 'bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600'"
               @click="copyCoverLetter"
             >
               <svg v-if="copiedCoverLetter" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1077,7 +1113,7 @@ onUnmounted(() => {
             <div v-if="loadingCoverLetterPrompt" role="status" class="py-4 text-center text-sm text-slate-400 bg-slate-50 rounded">
               Loading prompt...
             </div>
-            <div v-else-if="coverLetterPromptError" role="alert" class="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+            <div v-else-if="coverLetterPromptError" role="alert" class="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded text-sm text-amber-800 dark:text-amber-300">
               {{ coverLetterPromptError }}
             </div>
             <textarea
@@ -1114,7 +1150,7 @@ onUnmounted(() => {
               class="px-3 py-1.5 text-sm font-medium rounded-md border transition-all"
               :class="
                 outreachTemplateType === t.value
-                  ? 'bg-amber-50 border-amber-500 text-amber-900 font-semibold shadow-xs'
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-900 dark:text-amber-200 font-semibold shadow-xs'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
               "
               @click="onSelectTemplate(t.value)"
@@ -1128,14 +1164,14 @@ onUnmounted(() => {
         <div
           v-if="outreachError"
           role="alert"
-          class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2.5"
+          class="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-300 flex items-start gap-2.5"
         >
-          <svg class="w-4 h-4 text-red-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 text-red-600 dark:text-red-300 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div class="flex-1">
             <p class="font-semibold">{{ outreachError }}</p>
-            <p class="mt-0.5 text-red-600 text-xs">
+            <p class="mt-0.5 text-red-600 dark:text-red-300 text-xs">
               Ensure the local LLM service is active at the configured endpoint.
             </p>
           </div>
@@ -1152,7 +1188,7 @@ onUnmounted(() => {
         <div
           v-if="outreachSuccess"
           role="status"
-          class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800 flex items-center gap-2"
+          class="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-sm text-emerald-800 dark:text-emerald-300 flex items-center gap-2"
         >
           <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -1178,7 +1214,7 @@ onUnmounted(() => {
 
           <button
             type="button"
-            class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+            class="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 dark:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
             :disabled="generatingOutreach"
             @click="generateOutreach"
           >
@@ -1214,7 +1250,7 @@ onUnmounted(() => {
               v-if="generatedOutreach"
               type="button"
               class="px-3 py-1 text-sm font-medium rounded-md flex items-center gap-1.5 transition-colors shadow-sm"
-              :class="copiedOutreach ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white hover:bg-slate-700'"
+              :class="copiedOutreach ? 'bg-emerald-600 text-white' : 'bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600'"
               @click="copyOutreach"
             >
               <svg v-if="copiedOutreach" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1276,7 +1312,7 @@ onUnmounted(() => {
             <div v-if="loadingOutreachPrompt" role="status" class="py-4 text-center text-sm text-slate-400 bg-slate-50 rounded">
               Loading prompt...
             </div>
-            <div v-else-if="outreachPromptError" role="alert" class="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+            <div v-else-if="outreachPromptError" role="alert" class="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded text-sm text-amber-800 dark:text-amber-300">
               {{ outreachPromptError }}
             </div>
             <textarea
@@ -1308,7 +1344,7 @@ onUnmounted(() => {
       v-if="previewModalOpen"
       :content="previewContent"
       :title="'Tailored Resume - ' + application.company"
-      @close="previewModalOpen = false"
+      @close="closePreview"
     />
   </div>
 </template>

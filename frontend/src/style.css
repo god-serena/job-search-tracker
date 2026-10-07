@@ -2,6 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Shared dark palette for the existing light-oriented Tailwind utilities. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+:root[data-theme='dark'] body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).bg-white,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).bg-slate-50,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).bg-gray-50 {
+  background-color: #1e293b;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).bg-slate-100,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).bg-gray-100 {
+  background-color: #334155;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-slate-800,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-slate-900,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-gray-900,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-gray-800 {
+  color: #f1f5f9;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-slate-700,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-gray-700 {
+  color: #e2e8f0;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-slate-600,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-slate-500,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-gray-600,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-gray-500 {
+  color: #cbd5e1;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-slate-400,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-slate-300,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-gray-400,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).text-gray-300 {
+  color: #94a3b8;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).border-slate-100,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).border-slate-200,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).border-gray-100,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).border-gray-200 {
+  border-color: #334155;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).border-slate-300,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).border-gray-300 {
+  border-color: #475569;
+}
+:root[data-theme='dark'] #app input:not(.a4-page-sheet *),
+:root[data-theme='dark'] #app select:not(.a4-page-sheet *),
+:root[data-theme='dark'] #app textarea:not(.a4-page-sheet *) {
+  color-scheme: dark;
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+:root[data-theme='dark'] #app input:not(.a4-page-sheet *)::placeholder,
+:root[data-theme='dark'] #app select:not(.a4-page-sheet *)::placeholder,
+:root[data-theme='dark'] #app textarea:not(.a4-page-sheet *)::placeholder {
+  color: #94a3b8;
+}
+:root[data-theme='dark'] #app button:not(.a4-page-sheet *):focus-visible,
+:root[data-theme='dark'] #app a:not(.a4-page-sheet *):focus-visible,
+:root[data-theme='dark'] #app input:not(.a4-page-sheet *):focus-visible,
+:root[data-theme='dark'] #app select:not(.a4-page-sheet *):focus-visible,
+:root[data-theme='dark'] #app textarea:not(.a4-page-sheet *):focus-visible {
+  outline-color: #fbbf24;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:bg-white:hover,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:bg-slate-50:hover,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:bg-gray-50:hover {
+  background-color: #334155;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:bg-slate-100:hover,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:bg-slate-200:hover,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:bg-gray-100:hover,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:bg-gray-200:hover {
+  background-color: #334155;
+}
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:text-slate-700:hover,
+:root[data-theme='dark'] #app :where(:not(.a4-page-sheet):not(.a4-page-sheet *)).hover\:text-slate-800:hover {
+  color: #f8fafc;
+}
+
+/* Paper sheets intentionally retain their white resume-preview appearance. */
+:root[data-theme='dark'] #app .a4-page-sheet {
+  background-color: #ffffff;
+  color: #000000;
+}
+
 @media print {
   /* Hide the entire web application tree (#app) when printing */
   #app {
